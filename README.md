@@ -24,6 +24,15 @@ gcloud run deploy thermostat-agent --image us.gcr.io/$env:PROJECT_ID/thermostat-
 gcloud run services add-iam-policy-binding thermostat-agent --member=serviceAccount:$env:THERMOSTAT_IOT_SERVICE_ACCOUNT --role='roles/run.invoker'
 ```
 
+### Automate deployment to Cloud Run
+```
+# https://cloud.google.com/cloud-build/docs/deploying-builds/deploy-cloud-run#continuous-iam
+gcloud iam service-accounts add-iam-policy-binding $env:THERMOSTAT_AGENT_SERVICE_ACCOUNT --member="$env:CLOUD_BUILD_SVC_ACCOUNT" --role="roles/iam.serviceAccountUser"
+
+
+gcloud beta builds triggers create github --repo-name=thermostat-agent --repo-owner=raph84 --branch-pattern="master" --build-config=cloudbuild.yaml
+```
+
 ### Create storage bucket
 ```
 gsutil mb -p $env:PROJECT_ID -c STANDARD -l $env:GCP_LOCATION -b on gs://thermostat_metric_data
