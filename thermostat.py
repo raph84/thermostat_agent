@@ -37,6 +37,27 @@ def create_file(payload, filename):
     blob.upload_from_string(data=payload,
                             content_type='text/plain')
 
+@app.route('/metric/thermostat/', methods=['GET'])
+def get_metric_thermostat():
+    blobs = list(storage_client.list_blobs(bucket_name, prefix='thermostat'))
+    last = request.args.get('last', 1)
+    if last != 1:
+        last = range(-1,0-int(last)-1,-1)
+    else:
+        last = range(-1,-2,-1)
+    
+    last_json = []
+    
+    print ("Get last {} thermostat metric(s).".format(last))
+    print (last)
+    for i in last:
+        print ("Loop {}".format(i))
+        j = json.loads(blobs[i].download_as_string())
+        last_json.append(j)
+
+    return json.dumps(last_json)
+    
+
 @app.route('/metric/thermostat/', methods=['POST'])
 def store_metric_thermostat():
     envelope = request.get_json()

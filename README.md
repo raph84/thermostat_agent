@@ -42,6 +42,7 @@ gcloud beta builds triggers create github --repo-name=thermostat-agent --repo-ow
 gsutil mb -p $env:PROJECT_ID -c STANDARD -l $env:GCP_LOCATION -b on gs://thermostat_metric_data
 gsutil label ch -l project:thermostat gs://thermostat_metric_data
 gsutil iam ch $thermostat_agent_service_account gs://thermostat_metric_data
+gsutil iam ch $thermostat_agent_service_account2 gs://thermostat_metric_data
 ```
 
 ### PubSub subscription to store thermostat IoT sensor data
