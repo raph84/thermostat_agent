@@ -3,3 +3,6 @@
 
 *__.json
 __pychache__
+__pycache__/thermostat.cpython-38.pyc
+*.tfstate*
+.terraform
