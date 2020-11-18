@@ -5,6 +5,14 @@ steps:
 # Push the container image to Container Registry
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'us.gcr.io/$PROJECT_ID/thermostat-agent:$COMMIT_SHA']
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: gcloud
+  args:
+  - 'container'
+  - 'images'
+  - 'add-tag'
+  - 'us.gcr.io/$PROJECT_ID/thermostat-agent:$COMMIT_SHA'
+  - 'us.gcr.io/$PROJECT_ID/thermostat-agent:latest'
 
 
 - id: 'branch name'

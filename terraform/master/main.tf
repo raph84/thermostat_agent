@@ -59,7 +59,7 @@ resource "google_cloud_run_service" "default" {
             containers {
                 args    = []
                 command = []
-                image   = "us.gcr.io/thermostat-292016/thermostat-agent:fd3575916a1806bcdc98bf19f0894f2cf6516d64"
+                image   = "us.gcr.io/thermostat-292016/thermostat-agent:latest"
 
                 env {
                     name  = "PROJECT_ID"
