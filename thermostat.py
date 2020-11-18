@@ -12,11 +12,8 @@ from google.auth.transport.requests import Request
 import base64
 import copy
 import requests
+import pandas as pd
 
-credentials, project = google.auth.default(scopes=[
-    'https://www.googleapis.com/auth/cloud-platform',
-    'https://climacell-agent-ppb6otnevq-uk.a.run.app'
-])
 
 # Instantiates a client
 storage_client = storage.Client()
@@ -46,22 +43,59 @@ def create_file(payload, filename):
     blob.upload_from_string(data=payload,
                             content_type='text/plain')
 
+def get_metric_list_from_bucket():
+    blobs = list(storage_client.list_blobs(bucket_name, prefix='thermostat'))
+    metric_list = []
+    for _b in blobs:
+        filename = ' '.join(_b.name.rsplit('-', 2)[1:3])
+        try:
+            dateobj = datetime.strptime(filename,"%Y%m%d %H%M%S")
+            item = {
+                "name": _b.name,
+                "dateobj": dateobj
+            }
+            metric_list.append(item)
+        except ValueError:
+            pass
 
-def get_metric_from_bucket(last):
+
+    return metric_list
+
+def get_metric_from_bucket(last=0, last_file=None, first_file=None):
+
+    blobs = list(storage_client.list_blobs(bucket_name, prefix='thermostat'))
+    if last_file != None:
+        i = 0
+        for b in blobs:
+            if blobs[i].name == last_file:
+                break
+            i = i + 1
+
+        if blobs[i].name == last_file:
+            last = i
+
+
     if last != 1:
         last = range(-1,0-int(last)-1,-1)
     else:
         last = range(-1,-2,-1)
-
-    blobs = list(storage_client.list_blobs(bucket_name, prefix='thermostat'))
     last_json = []
     print("Get last {} thermostat metric(s).".format(last))
-    print(last)
     for i in last:
-        print("Loop {}".format(i))
-        j = json.loads(blobs[i].download_as_string())
-        j['datetime'] = '-'.join(blobs[i].name.rsplit('-', 2)[1:])
-        last_json.append(j)
+        try:
+            json_str = blobs[i].download_as_string()
+            j = json.loads(json_str)
+            j["file"] = blobs[i].name
+
+            j['datetime'] = datetime.fromtimestamp(
+                j['timestamp']).strftime("%Y-%m-%d %H:%M:%S")
+            j['dateobj'] = datetime.fromtimestamp(j['timestamp'])
+            last_json.append(j)
+        except NameError:
+            print("Payload is not JSON.")
+        except json.JSONDecodeError:
+            print("JSON error")
+            print(json_str)
 
     return last_json
 
@@ -71,8 +105,10 @@ def get_metric_thermostat():
     last = request.args.get('last', 1)
 
     last_json = get_metric_from_bucket(last)
+    last_json = json.dumps(last_json)
 
-    return json.dumps(last_json)
+
+    return last_json
 
 
 @app.route('/metric/thermostat/', methods=['POST'])
@@ -119,44 +155,58 @@ def site_map():
     return (str(links))
 
 
-request_headers = {
-    "content-type": "application/json"
-}
-target_audience = 'thermostat-agent-ppb6otnevq-uk.a.run.app'
+def resample_disturbances(data):
+    ind = []
+    for d in data:
+        ind.append(datetime.strptime(d["dt"],"%Y-%m-%d %H:%M:%S"))
+    df = pd.DataFrame(data, index=ind)
+    df = df.resample('15Min').interpolate(method='linear')
+    df['dt'] = df.index.values
+    data2 = df.to_dict('records')
+    for d in data2:
+        d['dt'] = d['dt'].to_pydatetime().strftime("%Y-%m-%d %H:%M:%S")
+    #data2['dt'] = data2['dt'].to_pydatetime().strftime("%Y-%m-%d %H:%M:%S")
+    return data2
+
 
 url_weather = 'https://climacell-agent-ppb6otnevq-uk.a.run.app'
 
-def update_id_connect_token():
+def query(url_query, audience, method='GET', body=None):
     open_id_connect_token = id_token.fetch_id_token(Request(),
-                                                            audience=url_weather)
-    return open_id_connect_token
+                                                            audience=audience)
 
-def query(url_query):
     resp = requests.request(
-        'GET',
+        method,
         url_query,
-        headers={'Authorization': 'Bearer {}'.format(open_id_connect_token)}
-    )
+        headers={'Authorization': 'Bearer {}'.format(open_id_connect_token)},
+        json=body)
     return resp
 
-open_id_connect_token = update_id_connect_token()
 
-resp = requests.request(
-    'GET',
-    url_weather + '/realtime/',
-    headers={'Authorization': 'Bearer {}'.format(open_id_connect_token)}
-)
-print(resp)
+def get_weather_realtime(last=1, realtime_start=None, realtime_end=None):
+    url_query=None
+    if (realtime_start != None and realtime_end != None):
+        url_query = url_weather + '/store/realtime/?start={}&end={}'.format(
+            realtime_start,realtime_end)
+    else:
+        url_query = url_weather + '/store/realtime/?last=' + str(last)
 
-def get_weather_realtime():
-    url_query = url_weather + '/realtime/'
-    resp = query(url_query)
-    return resp
+    resp = query(url_query, url_weather)
 
-def get_weather_hourly():
-    url_query = url_weather + '/hourly/'
-    resp = query(url_query)
-    return resp
+    return resp.json()
+
+
+def get_weather_hourly(last=1, hourly_start=None, hourly_end=None):
+    url_query = None
+    if(hourly_start != None and hourly_end != None):
+        url_query = url_weather + '/store/hourly/?start={}&end={}'.format(
+            hourly_start, hourly_end)
+    else:
+        url_query = url_weather + '/store/hourly/?last=' + str(last)
+
+    resp = query(url_query, url_weather)
+
+    return resp.json()
 
 def get_set_point(date):
     if date.hour > 21 or (date.hour < 5 and date.minute > 30):
@@ -164,9 +214,17 @@ def get_set_point(date):
     else:
         return 22
 
+def round_date(date):
+    minute = 15 * round((float(date.minute) + float(date.second) / 60) / 15)
+    if minute == 60:
+        minute = 0
+    date = datetime(date.year, date.month, date.day, date.hour, minute)
+    return date
+
 def map_climacell_data(data):
     date = datetime.strptime(data['observation_time']['value'],
                              '%Y-%m-%dT%H:%M:%S.%f%z')
+    date = round_date(date)
     return {
         "dt": date.strftime("%Y-%m-%d %H:%M:%S"),
         "Indoor Temp. Setpoint": get_set_point(date),
@@ -174,49 +232,118 @@ def map_climacell_data(data):
         "Outdoor RH": data['humidity']['value'],
         "Wind Speed": data['wind_speed']['value'],
         "Wind Direction": data['wind_direction']['value'],
-        "Direct Solar Rad.": data['surface_shortwave_radiation']['value']
+        "Direct Solar Rad.": data['surface_shortwave_radiation']['value'],
+        "name": data['name']
     }
 
+def format_date(date):
+    date = date.strftime("%Y-%m-%d %H:%M:%S")
+    return date
 
 @app.route("/digest")
 def digest():
-    open_id_connect_token = id_token.fetch_id_token(Request(),
-                                                    audience=url_weather)
+    hourly_start = request.args.get('hourly_start', None)
+    hourly_end = request.args.get('hourly_end', None)
+    realtime_start = request.args.get('realtime_start', None)
+    realtime_end = request.args.get('realtime_end', None)
+
+    return digest(hourly_start,
+                    hourly_end,
+                    realtime_start,
+                    realtime_end)
 
 
-    thermostat = get_metric_from_bucket(1)[0]
-    hourly = get_weather_hourly().json()
-    realtime = get_weather_realtime().json()
-    result = {
-                "digest": {}
-            }
+def digest(hourly_start=None,
+           hourly_end=None,
+           realtime_start=None,
+           realtime_end=None):
+
+    thermostat = get_metric_from_bucket(12)
+    thermostat_df = pd.DataFrame(thermostat)
+    thermostat_df = thermostat_df.set_index('dateobj')
+    hourly = get_weather_hourly(hourly_start=hourly_start,
+                                hourly_end=hourly_end)
+    realtime = get_weather_realtime(realtime_start=realtime_start,
+                                    realtime_end=realtime_end)
+    #result = {"digest": {"date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}}
+    current_thermostat = thermostat.pop(0)
+    current_realtime = realtime.pop(0)
+    date_t = datetime.strptime(current_thermostat['datetime'],
+                               "%Y-%m-%d %H:%M:%S")
+    date_t = round_date(date_t)
+    result = {"digest": {}}
     result["digest"]["current"] = {
-            "Htg SP": 0,
-            "Indoor Temp. Setpoint": 0,
-            "Occupancy Flag": thermostat['motion'],
-            "PPD": 0,
-            "Coil Power": 0,
-            "MA Temp.": 0,
-            "Sys Out Temp.": 0,
-            "dt": thermostat['datetime'],
-            "Outdoor Temp.": realtime['temp']['value'],
-            "Outdoor RH": realtime['humidity']['value'],
-            "Wind Speed": realtime['wind_speed']['value'],
-            "Wind Direction": realtime['wind_direction']['value'],
-            "Direct Solar Rad.":
-            realtime['surface_shortwave_radiation']['value'],
-            "Indoor Temp.": thermostat['temperature']
-        }
-        
+        "Htg SP": 12.8,
+        "Indoor Temp. Setpoint": get_set_point(date_t),
+        "Occupancy Flag": current_thermostat['motion'],
+        "PPD": 99,
+        "Coil Power": 0,
+        "MA Temp.": 8.49,
+        "Sys Out Temp.": 8.86,
+        "dt": format_date(date_t),
+        "Outdoor Temp.": current_realtime['temp']['value'],
+        "Outdoor RH": current_realtime['humidity']['value'],
+        "Wind Speed": current_realtime['wind_speed']['value'],
+        "Wind Direction": current_realtime['wind_direction']['value'],
+        "Direct Solar Rad.": current_realtime['surface_shortwave_radiation']['value'] or 0.0,
+        "Indoor Temp.": current_thermostat['temperature']
+    }
+    result["digest"]["date"] = format_date(date_t)
     disturbances = []
-    result["digest"]["disturbances"] = disturbances
-    for i in range(0, 12):
-        h = hourly[i]
-        mapping = map_climacell_data(h)
-        mapping["Occupancy Flag"] = 0
-        disturbances.append(mapping)
 
+    for r in realtime:
+        date_r = datetime.strptime(r['observation_time']['value'],
+                                   '%Y-%m-%dT%H:%M:%S.%f%z')
+        date_r = date_r.replace(tzinfo=None)
+        if date_r < date_t:
+            mapping = map_climacell_data(r)
+            date_r_pd = pd.to_datetime(date_r)
+            nearest_t = thermostat_df.iloc[thermostat_df.index.get_loc(
+                date_r_pd, method='nearest')]
+            mapping["Indoor Temp."] = nearest_t["temperature"]
+            if nearest_t["motion"]:
+                mapping["Occupancy Flag"] = 1
+            else:
+                mapping["Occupancy Flag"] = 0
+
+            disturbances.append(copy.deepcopy(mapping))
+
+    for h in hourly:
+        date_h = datetime.strptime(h['observation_time']['value'],
+                                   '%Y-%m-%dT%H:%M:%S.%f%z')
+        date_h = date_h.replace(tzinfo=None)
+        date_temp = datetime.strptime(result["digest"]["date"],
+                                   "%Y-%m-%d %H:%M:%S")
+        diff = ((date_h - date_temp).total_seconds() // 3600)
+        print(h['observation_time']['value'])
+        if diff < 4 and diff >= 0:
+            print(h['observation_time']['value'])
+            mapping = map_climacell_data(h)
+            mapping["Occupancy Flag"] = 0
+
+            disturbances.append(copy.deepcopy(mapping))
+
+    disturbances = resample_disturbances(disturbances)
+    result["digest"]["disturbances"] = disturbances
     return result["digest"]
+
+
+url_gnu_rl = "https://gnu-rl-agent-ppb6otnevq-uk.a.run.app"
+#url_gnu_rl = "http://127.0.0.1:5001"
+
+
+@app.route("/next-action")
+def next_action():
+    hourly_start = request.args.get('hourly_start', None)
+    hourly_end = request.args.get('hourly_end', None)
+    realtime_start = request.args.get('realtime_start', None)
+    realtime_end = request.args.get('realtime_end', None)
+
+    body = digest(hourly_start, hourly_end, realtime_start, realtime_end)
+
+    url_query = url_gnu_rl + '/mpc/'
+    resp = query(url_query, url_gnu_rl, 'POST', body)
+    return resp.text
 
 
 if __name__ == "__main__":
