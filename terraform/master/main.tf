@@ -46,6 +46,10 @@ resource "google_service_account" "thermostat-agent" {
   account_id   = "thermostat-agent"
 }
 
+resource "google_project_service" "enable_cloud_resource_manager_api" {
+  service = "cloudresourcemanager.googleapis.com"
+}
+
 resource "google_project_service" "run" {
   service = "run.googleapis.com"
 }
@@ -87,7 +91,7 @@ resource "google_cloud_run_service" "default" {
 }
 
 output "url" {
-  value = "${google_cloud_run_service.default.status[0].url}"
+  value = google_cloud_run_service.default.status[0].url
 }
 
 resource "google_cloud_run_service_iam_member" "member" {
