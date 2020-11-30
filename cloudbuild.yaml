@@ -69,6 +69,7 @@ steps:
           echo "*************** TERRAFOM PLAN ******************"
           echo "******* At environment: ${env} ********"
           echo "*************************************************"
+          export $TF_VAR_runinvokers=$_RUNINVOKERS
           terraform plan || exit 1
           cd ../../
         done
@@ -94,17 +95,17 @@ steps:
 
 
 # Deploy container image to Cloud Run
-#- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-#  entrypoint: gcloud
-#  args:
-#  - 'run'
-#  - 'deploy'
-#  - 'thermostat-agent'
-#  - '--image'
-#  - 'us.gcr.io/$PROJECT_ID/thermostat-agent:$COMMIT_SHA'
-#  - '--region'
-#  - 'us-east4'
-#  - '--platform'
-#  - 'managed'
-#images:
-#- 'us.gcr.io/$PROJECT_ID/thermostat-agent:$COMMIT_SHA'
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: gcloud
+  args:
+  - 'run'
+  - 'deploy'
+  - 'thermostat-agent'
+  - '--image'
+  - 'us.gcr.io/$PROJECT_ID/thermostat-agent:$COMMIT_SHA'
+  - '--region'
+  - 'us-east4'
+  - '--platform'
+  - 'managed'
+images:
+- 'us.gcr.io/$PROJECT_ID/thermostat-agent:$COMMIT_SHA'
