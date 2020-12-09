@@ -60,7 +60,7 @@ provider "docker" {
 }
 
 data "docker_registry_image" "thermostat-agent" {
-  name = "gcr.io/${local.project_id}/thermostat-agent"
+  name = "us.gcr.io/${local.project_id}/thermostat-agent"
 }
 
 data "google_container_registry_image" "thermostat-agent-latest" {
