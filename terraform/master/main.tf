@@ -102,7 +102,7 @@ resource "google_cloud_run_service_iam_member" "member" {
   member = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
   
 }
-resource "google_cloud_run_service_iam_member" "member" {
+resource "google_cloud_run_service_iam_member" "iam_thermostat-iot" {
   project = local.project_id
   service = "climacell-agent"
   role = "roles/run.invoker"
