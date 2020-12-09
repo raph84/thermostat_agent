@@ -104,7 +104,7 @@ resource "google_cloud_run_service_iam_member" "member" {
 }
 resource "google_cloud_run_service_iam_member" "iam_thermostat-iot" {
   project = local.project_id
-  service = "climacell-agent"
+  service = "thermostat-agent"
   role = "roles/run.invoker"
   location = "us-east4"
   member = "serviceAccount:thermostat-iot@raph-iot.iam.gserviceaccount.com"
