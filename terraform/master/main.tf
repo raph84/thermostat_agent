@@ -53,7 +53,7 @@ output "test" {
 
 provider "docker" {
   registry_auth {
-    address  = "gcr.io"
+    address  = "us.gcr.io"
     username = "oauth2accesstoken"
     password = data.google_client_config.default.access_token
   }
