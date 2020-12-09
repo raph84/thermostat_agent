@@ -102,6 +102,15 @@ resource "google_cloud_run_service_iam_member" "member" {
   member = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
   
 }
+resource "google_cloud_run_service_iam_member" "member" {
+  project = local.project_id
+  service = "climacell-agent"
+  role = "roles/run.invoker"
+  location = "us-east4"
+  member = "serviceAccount:thermostat-iot@raph-iot.iam.gserviceaccount.com"
+  
+}
+
 
 resource "google_storage_bucket" "thermostat_metric_data" {
   labels                      = {
