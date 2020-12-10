@@ -181,7 +181,7 @@ resource "google_storage_bucket_iam_binding" "thermostat_metric_data-ObjectAdmin
   ]
 }
 
-resource "google_storage_bucket_iam_binding" "thermostat_metric_data-ObjectAdmin" {
+resource "google_storage_bucket_iam_binding" "thermostat-agent-debuger-iam" {
   bucket = google_storage_bucket.thermostat_metric_data.name
   role   = "roles/clouddebugger.agent"
   members = [
