@@ -65,13 +65,13 @@ resource "google_project_service" "run" {
   service = "run.googleapis.com"
 }
 
-# provider "docker" {
-#   registry_auth {
-#     address  = "us.gcr.io"
-#     username = "oauth2accesstoken"
-#     password = data.google_client_config.default.access_token
-#   }
-# }
+provider "docker" {
+  registry_auth {
+    address  = "us.gcr.io"
+    username = "oauth2accesstoken"
+    password = data.google_client_config.default.access_token
+  }
+}
 
 # data "docker_registry_image" "thermostat-agent" {
 #   name = "us.gcr.io/${local.project_id}/thermostat-agent"
