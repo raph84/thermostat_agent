@@ -1,7 +1,7 @@
 steps:
 # Build the container image
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--tag', 'us.gcr.io/$PROJECT_ID/thermostat-agent:$COMMIT_SHA', '.']
+  args: ['build', '--tag', 'us.gcr.io/$PROJECT_ID/thermostat-agent:$COMMIT_SHA','--tag', 'us.gcr.io/$PROJECT_ID/thermostat-agent:latest', '.']
 # Push the container image to Container Registry
 - name: 'docker'
   args: ['push', 'us.gcr.io/$PROJECT_ID/thermostat-agent:$COMMIT_SHA']
