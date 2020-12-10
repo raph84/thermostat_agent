@@ -51,27 +51,7 @@ output "test" {
   value = data.google_client_config.default.access_token
 }
 
-provider "docker" {
-  registry_auth {
-    address  = "us.gcr.io"
-    username = "oauth2accesstoken"
-    password = data.google_client_config.default.access_token
-  }
-}
 
-data "docker_registry_image" "thermostat-agent" {
-  name = "us.gcr.io/${local.project_id}/thermostat-agent"
-}
-
-data "google_container_registry_image" "thermostat-agent-latest" {
-  name    = "thermostat-agent"
-  project = local.project_id
-  digest  = data.docker_registry_image.thermostat-agent.sha256_digest
-}
-
-output "image_url" {
-  value = data.google_container_registry_image.thermostat-agent-latest.image_url
-}
 
 resource "google_service_account" "thermostat-agent" {
   account_id = "thermostat-agent"
@@ -85,45 +65,67 @@ resource "google_project_service" "run" {
   service = "run.googleapis.com"
 }
 
-resource "google_cloud_run_service" "default" {
-  location = "us-east4"
-  name     = "thermostat-agent"
-  project  = "thermostat-292016"
-  template {
-    spec {
-      container_concurrency = 1
-      service_account_name  = "thermostat-agent@thermostat-292016.iam.gserviceaccount.com"
-      timeout_seconds       = 30
+# provider "docker" {
+#   registry_auth {
+#     address  = "us.gcr.io"
+#     username = "oauth2accesstoken"
+#     password = data.google_client_config.default.access_token
+#   }
+# }
 
-      containers {
-        args    = []
-        command = []
-        image   = data.google_container_registry_image.thermostat-agent-latest.image_url
+# data "docker_registry_image" "thermostat-agent" {
+#   name = "us.gcr.io/${local.project_id}/thermostat-agent"
+# }
 
-        env {
-          name  = "PROJECT_ID"
-          value = "thermostat-292016"
-        }
+# data "google_container_registry_image" "thermostat-agent-latest" {
+#   name    = "thermostat-agent"
+#   project = local.project_id
+#   digest  = data.docker_registry_image.thermostat-agent.sha256_digest
+# }
 
-        ports {
-          container_port = 8080
-        }
+# output "image_url" {
+#   value = data.google_container_registry_image.thermostat-agent-latest.image_url
+# }
 
-        resources {
-          limits = {
-            "cpu"    = "1000m"
-            "memory" = "256Mi"
-          }
-          requests = {}
-        }
-      }
-    }
-  }
-}
+# resource "google_cloud_run_service" "default" {
+#   location = "us-east4"
+#   name     = "thermostat-agent"
+#   project  = "thermostat-292016"
+#   template {
+#     spec {
+#       container_concurrency = 1
+#       service_account_name  = "thermostat-agent@thermostat-292016.iam.gserviceaccount.com"
+#       timeout_seconds       = 30
 
-output "url" {
-  value = google_cloud_run_service.default.status[0].url
-}
+#       containers {
+#         args    = []
+#         command = []
+#         image   = data.google_container_registry_image.thermostat-agent-latest.image_url
+
+#         env {
+#           name  = "PROJECT_ID"
+#           value = "thermostat-292016"
+#         }
+
+#         ports {
+#           container_port = 8080
+#         }
+
+#         resources {
+#           limits = {
+#             "cpu"    = "1000m"
+#             "memory" = "256Mi"
+#           }
+#           requests = {}
+#         }
+#       }
+#     }
+#   }
+# }
+
+# output "url" {
+#   value = google_cloud_run_service.default.status[0].url
+# }
 
 resource "google_cloud_run_service_iam_member" "member" {
   project  = local.project_id
