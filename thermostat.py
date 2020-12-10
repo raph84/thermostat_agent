@@ -1,3 +1,12 @@
+try:
+    import googleclouddebugger
+    googleclouddebugger.enable(breakpoint_enable_canary=False)
+
+except ImportError:
+    pass
+
+
+
 import os
 from flask import Flask, url_for, request
 import json
