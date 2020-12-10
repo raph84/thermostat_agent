@@ -1,12 +1,12 @@
 steps:
 # Build the container image
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--tag', 'us.gcr.io/$PROJECT_ID/thermostat-agent:$COMMIT_SHA','--tag', 'us.gcr.io/$PROJECT_ID/thermostat-agent:latest', '.']
+  args: ['build', '--tag', 'gcr.io/$PROJECT_ID/thermostat-agent:$COMMIT_SHA','--tag', 'gcr.io/$PROJECT_ID/thermostat-agent:latest', '.']
 # Push the container image to Container Registry
 - name: 'docker'
-  args: ['push', 'us.gcr.io/$PROJECT_ID/thermostat-agent:$COMMIT_SHA']
+  args: ['push', 'gcr.io/$PROJECT_ID/thermostat-agent:$COMMIT_SHA']
 - name: 'docker'
-  args: ['push', 'us.gcr.io/$PROJECT_ID/thermostat-agent:latest']
+  args: ['push', 'gcr.io/$PROJECT_ID/thermostat-agent:latest']
 - id: 'branch name'
   name: 'alpine'
   entrypoint: 'sh'  
@@ -100,5 +100,5 @@ steps:
 #   - '--platform'
 #   - 'managed'
 images:
-- 'us.gcr.io/$PROJECT_ID/thermostat-agent:$COMMIT_SHA'
-- 'us.gcr.io/$PROJECT_ID/thermostat-agent:latest'
+- 'gcr.io/$PROJECT_ID/thermostat-agent:$COMMIT_SHA'
+- 'gcr.io/$PROJECT_ID/thermostat-agent:latest'
