@@ -180,3 +180,11 @@ resource "google_storage_bucket_iam_binding" "thermostat_metric_data-ObjectAdmin
     join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
   ]
 }
+
+resource "google_storage_bucket_iam_binding" "thermostat_metric_data-ObjectAdmin" {
+  bucket = google_storage_bucket.thermostat_metric_data.name
+  role   = "roles/clouddebugger.agent"
+  members = [
+    join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
+  ]
+}
