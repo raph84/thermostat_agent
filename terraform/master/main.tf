@@ -142,9 +142,14 @@ resource "google_cloud_run_service_iam_member" "iam_thermostat-iot" {
   role     = "roles/run.invoker"
   location = "us-east4"
   member   = "serviceAccount:thermostat-iot@raph-iot.iam.gserviceaccount.com"
-
 }
-
+resource "google_cloud_run_service_iam_member" "cloud-debugger" {
+  project  = local.project_id
+  service  = "thermostat-agent"
+  role     = "roles/clouddebugger.agent"
+  location = "us-east4"
+  member   = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
+}
 
 resource "google_storage_bucket" "thermostat_metric_data" {
   labels = {
@@ -176,14 +181,6 @@ resource "google_storage_bucket_iam_binding" "thermostat_metric_data-ObjectViewe
 resource "google_storage_bucket_iam_binding" "thermostat_metric_data-ObjectAdmin" {
   bucket = google_storage_bucket.thermostat_metric_data.name
   role   = "roles/storage.objectAdmin"
-  members = [
-    join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
-  ]
-}
-
-resource "google_storage_bucket_iam_binding" "thermostat-agent-debuger-iam" {
-  bucket = google_storage_bucket.thermostat_metric_data.name
-  role   = "roles/clouddebugger.agent"
   members = [
     join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
   ]
