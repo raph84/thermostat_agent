@@ -143,12 +143,11 @@ resource "google_cloud_run_service_iam_member" "iam_thermostat-iot" {
   location = "us-east4"
   member   = "serviceAccount:thermostat-iot@raph-iot.iam.gserviceaccount.com"
 }
-resource "google_cloud_run_service_iam_member" "cloud-debugger" {
-  project  = local.project_id
-  service  = "thermostat-agent"
-  role     = "roles/clouddebugger.agent"
-  location = "us-east4"
-  member   = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
+
+resource "google_project_iam_member" "cloud-debuger" {
+  project = local.project_id
+  role    = "roles/clouddebugger.agent"
+  member  = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
 }
 
 resource "google_storage_bucket" "thermostat_metric_data" {
