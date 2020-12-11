@@ -56,6 +56,9 @@ output "test" {
 resource "google_service_account" "thermostat-agent" {
   account_id = "thermostat-agent"
 }
+resource "google_service_account" "api-call" {
+  account_id = "api-call"
+}
 
 resource "google_project_service" "enable_cloud_resource_manager_api" {
   service = "cloudresourcemanager.googleapis.com"
@@ -143,6 +146,15 @@ resource "google_cloud_run_service_iam_member" "iam_thermostat-iot" {
   location = "us-east4"
   member   = "serviceAccount:thermostat-iot@raph-iot.iam.gserviceaccount.com"
 }
+resource "google_cloud_run_service_iam_member" "iam-api-call" {
+  project  = local.project_id
+  service  = "thermostat-agent"
+  role     = "roles/run.invoker"
+  location = "us-east4"
+  member   = join(":", ["serviceAccount", google_service_account.api-call.email])
+}
+
+
 
 resource "google_project_iam_member" "cloud-debuger" {
   project = local.project_id
