@@ -22,6 +22,11 @@ import base64
 import copy
 import requests
 import pandas as pd
+from pytz import timezone
+import pytz
+import iso8601
+
+from accumulator import Accumulator
 
 
 # Instantiates a client
@@ -36,6 +41,10 @@ project_id = os.environ['PROJECT_ID']
 
 app = Flask(__name__)
 app.config["DEBUG"] = True
+
+
+def utcnow():
+    return datetime.now(tz=timezone('America/Montreal'))
 
 
 def create_file(payload, filename):
@@ -70,9 +79,9 @@ def get_metric_list_from_bucket():
 
     return metric_list
 
-def get_metric_from_bucket(last=0, last_file=None, first_file=None):
+def get_metric_from_bucket(last=0, pref='thermostat', last_file=None, first_file=None):
 
-    blobs = list(storage_client.list_blobs(bucket_name, prefix='thermostat'))
+    blobs = list(storage_client.list_blobs(bucket_name, prefix=pref))
     if last_file != None:
         i = 0
         for b in blobs:
@@ -143,6 +152,10 @@ def store_metric_thermostat():
     create_file(payload, filename)
 
     return ('', 204)
+
+
+
+
 
 def has_no_empty_params(rule):
     defaults = rule.defaults if rule.defaults is not None else ()
@@ -353,6 +366,55 @@ def next_action():
     url_query = url_gnu_rl + '/mpc/'
     resp = query(url_query, url_gnu_rl, 'POST', body)
     return resp.text
+
+accumulator = None
+
+@app.route('/accumulate/', methods=['POST'])
+def test_accumulate():
+    j = request.get_json()
+    acc(j)
+
+    return ('',204)
+
+
+def acc(j):
+    global accumulator
+
+    n = utcnow()
+    if accumulator == None or n > accumulator.dt:
+        accumulator = Accumulator()
+
+
+    accumulator.add_temperature(n, temp=j.get('temperature'), humidity=j.get('humidity'), motion=j.get('motion'), stove_exhaust_temp=j.get('stove_exhaust_temp'))
+
+@app.route('/metric/accumulate/', methods=['POST'])
+def accumulate_metric_thermostat():
+    envelope = request.get_json()
+    if not envelope:
+        msg = 'no Pub/Sub message received'
+        print(f'error: {msg}')
+        return f'Bad Request: {msg}', 400
+
+    if not isinstance(envelope, dict) or 'message' not in envelope:
+        msg = 'invalid Pub/Sub message format'
+        print(f'error: {msg}')
+        return f'Bad Request: {msg}', 400
+
+    pubsub_message = envelope['message']
+
+    payload = ''
+    if isinstance(pubsub_message, dict) and 'data' in pubsub_message:
+        payload = base64.b64decode(
+            pubsub_message['data']).decode('utf-8').strip()
+
+
+    blobs = list(storage_client.list_blobs(bucket_name, prefix=pref))
+    json_str = blobs[i].download_as_string()
+    j = json.load(json_str)
+
+    acc(j)
+
+    return ('', 204)
 
 
 if __name__ == "__main__":
