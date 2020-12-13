@@ -28,6 +28,8 @@ import iso8601
 
 from accumulator import Accumulator
 
+from utils import utcnow, ceil_dt
+
 
 # Instantiates a client
 storage_client = storage.Client()
@@ -42,9 +44,6 @@ project_id = os.environ['PROJECT_ID']
 app = Flask(__name__)
 app.config["DEBUG"] = True
 
-
-def utcnow():
-    return datetime.now(tz=timezone('America/Montreal'))
 
 
 def create_file(payload, filename):
@@ -367,23 +366,22 @@ def next_action():
     resp = query(url_query, url_gnu_rl, 'POST', body)
     return resp.text
 
-accumulator = None
+accumulator = Accumulator()
 
 @app.route('/accumulate/', methods=['POST'])
 def test_accumulate():
     j = request.get_json()
     acc(j)
 
-    return ('',204)
+    resp = accumulator.entity.temperature.to_json(orient="records")
+    print(resp)
+    return resp
 
 
 def acc(j):
-    global accumulator
 
     n = utcnow()
-    if accumulator == None or n > accumulator.dt:
-        accumulator = Accumulator()
-
+    #accumulator = Accumulator()
 
     accumulator.add_temperature(n, temp=j.get('temperature'), humidity=j.get('humidity'), motion=j.get('motion'), stove_exhaust_temp=j.get('stove_exhaust_temp'))
 
@@ -408,11 +406,6 @@ def accumulate_metric_thermostat():
             pubsub_message['data']).decode('utf-8').strip()
 
 
-    blobs = list(storage_client.list_blobs(bucket_name, prefix=pref))
-    json_str = blobs[i].download_as_string()
-    j = json.load(json_str)
-
-    acc(j)
 
     return ('', 204)
 
