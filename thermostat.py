@@ -405,7 +405,7 @@ def accumulate_metric_thermostat():
         payload = base64.b64decode(
             pubsub_message['data']).decode('utf-8').strip()
 
-    acc(payload)
+    acc(json.loads(payload))
 
     return ('', 204)
 
