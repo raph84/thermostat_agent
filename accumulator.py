@@ -43,24 +43,40 @@ class Accumulator():
         self.blob.patch()
 
     def load_and_hold(self):
-        blobs = list(self.storage_client.list_blobs(self.bucket_name, prefix=self.PREFIX))
-        if len(blobs) > 0 :
-            self.blob = blobs[-1]
-            self.blob.temporary_hold = True
-            self.blob.patch()
-            pickle_load = blobs[-1].download_as_string()
-            self.entity = pickle.loads(pickle_load)
+        self.load(1, True)
+
+    def load(self, n=1, hold=False):
+        self.entity = None
+        blobs = list(
+            self.storage_client.list_blobs(self.bucket_name,
+                                           prefix=self.PREFIX))
+
+        if n > 0 and len(blobs) >= n:
+            rng = range(-1, 0 - int(n) - 1, -1)
+            for i in rng:
+                if i < -1:
+                    self.blob = None
+                blob = blobs[i]
+                if hold and i == -1:
+                    blob.temporary_hold = True
+                    blob.patch()
+                pickle_load = blob.download_as_string()
+                e = pickle.loads(pickle_load)
+                if self.entity is None:
+                    self.entity = e
+                else:
+                    if (self.entity.dt < e.dt):
+                        self.entity.dt = e.dt
+                    self.entity.temperature.append(e.temperature)
         else:
             self.entity = Accumulator_Entity()
-            self.entity.dt = ceil_dt(utcnow(),15)
+            self.entity.dt = ceil_dt(utcnow(), 15)
             filename = self.get_filename(self.entity.dt)
 
-            blob = self.bucket.blob(filename)
+            self.blob = self.bucket.blob(filename)
             pickle_dump = pickle.dumps(self.entity)
-            blob.upload_from_string(data=pickle_dump)
-            blob.temporary_hold = True
-            blob.patch()
-            self.blob = blob
+            self.blob.upload_from_string(data=pickle_dump)
+
 
     def add_temperature(self, d, temp=None, humidity=None, motion=None, stove_exhaust_temp=None):
         self.load_and_hold()

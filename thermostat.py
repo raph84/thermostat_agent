@@ -279,6 +279,8 @@ def digest(hourly_start=None,
            realtime_start=None,
            realtime_end=None):
 
+    therm_acc = get_accumulate()
+    print(therm_acc)
     thermostat = get_metric_from_bucket(12)
     thermostat_df = pd.DataFrame(thermostat)
     thermostat_df = thermostat_df.set_index('dateobj')
@@ -366,7 +368,6 @@ def next_action():
     resp = query(url_query, url_gnu_rl, 'POST', body)
     return resp.text
 
-accumulator = Accumulator()
 
 @app.route('/accumulate/', methods=['POST'])
 def test_accumulate():
@@ -379,10 +380,9 @@ def test_accumulate():
 
 
 def acc(j):
-
+    accumulator = Accumulator()
     n = utcnow()
     #accumulator = Accumulator()
-
     accumulator.add_temperature(n, temp=j.get('temperature'), humidity=j.get('humidity'), motion=j.get('motion'), stove_exhaust_temp=j.get('stove_exhaust_temp'))
 
 @app.route('/metric/accumulate/', methods=['POST'])
@@ -405,9 +405,17 @@ def accumulate_metric_thermostat():
         payload = base64.b64decode(
             pubsub_message['data']).decode('utf-8').strip()
 
-
+    acc(payload)
 
     return ('', 204)
+
+def get_accumulate():
+    accumulator = Accumulator()
+    accumulator.load(2)
+
+    return accumulator.entity
+
+
 
 
 if __name__ == "__main__":
