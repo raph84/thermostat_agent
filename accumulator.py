@@ -59,7 +59,7 @@ class Accumulator():
                 else:
                     self.blob = blobs[i]
                     
-                pickle_load = blob.download_as_string()
+                pickle_load = self.blob.download_as_string()
                 e = pickle.loads(pickle_load)
                 if self.entity is None:
                     self.entity = e
