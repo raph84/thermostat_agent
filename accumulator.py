@@ -56,10 +56,9 @@ class Accumulator():
             for i in rng:
                 if i < -1:
                     self.blob = None
-                blob = blobs[i]
-                if hold and i == -1:
-                    blob.temporary_hold = True
-                    blob.patch()
+                else:
+                    self.blob = blobs[i]
+                    
                 pickle_load = blob.download_as_string()
                 e = pickle.loads(pickle_load)
                 if self.entity is None:
@@ -77,6 +76,9 @@ class Accumulator():
             pickle_dump = pickle.dumps(self.entity)
             self.blob.upload_from_string(data=pickle_dump)
 
+        if hold:
+            self.blob.temporary_hold = True
+            self.blob.patch()
 
     def add_temperature(self, d, temp=None, humidity=None, motion=None, stove_exhaust_temp=None):
         self.load_and_hold()
