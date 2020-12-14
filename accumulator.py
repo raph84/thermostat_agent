@@ -34,11 +34,11 @@ class Accumulator():
             self.blob = self.bucket.blob(filename)
 
         pickle_dump = pickle.dumps(self.entity)
-        try:
-            self.blob.temporary_hold = False
-            self.blob.patch()
-        except:
-            print("There was no hold.")
+        #try:
+        #    self.blob.temporary_hold = False
+        #    self.blob.patch()
+        #except:
+        #    print("There was no hold.")
         self.blob.upload_from_string(data=pickle_dump)
 
     def release(self):
@@ -46,7 +46,7 @@ class Accumulator():
         self.blob.patch()
 
     def load_and_hold(self):
-        self.load(1, True)
+        self.load(1)
 
     def load(self, n=1, hold=False):
         self.entity = None
@@ -79,9 +79,9 @@ class Accumulator():
             pickle_dump = pickle.dumps(self.entity)
             self.blob.upload_from_string(data=pickle_dump)
 
-        if hold:
-            self.blob.temporary_hold = True
-            self.blob.patch()
+        #if hold:
+        #    self.blob.temporary_hold = True
+        #    self.blob.patch()
 
     def add_temperature(self, d, temp=None, humidity=None, motion=None, stove_exhaust_temp=None):
         self.load_and_hold()
