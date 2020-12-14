@@ -34,8 +34,11 @@ class Accumulator():
             self.blob = self.bucket.blob(filename)
 
         pickle_dump = pickle.dumps(self.entity)
-        self.blob.temporary_hold = False
-        self.blob.patch()
+        try:
+            self.blob.temporary_hold = False
+            self.blob.patch()
+        except:
+            print("There was no hold.")
         self.blob.upload_from_string(data=pickle_dump)
 
     def release(self):
