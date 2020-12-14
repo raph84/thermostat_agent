@@ -8,6 +8,7 @@ except ImportError:
 
 
 import os
+import logging
 from flask import Flask, url_for, request
 import json
 from google.cloud import pubsub_v1
@@ -31,6 +32,7 @@ from accumulator import Accumulator
 from utils import utcnow, ceil_dt
 
 
+
 # Instantiates a client
 storage_client = storage.Client()
 
@@ -44,7 +46,10 @@ project_id = os.environ['PROJECT_ID']
 app = Flask(__name__)
 app.config["DEBUG"] = True
 
-
+if __name__ != '__main__':
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(gunicorn_logger.level)
 
 def create_file(payload, filename):
     """Create a file.
@@ -404,8 +409,13 @@ def accumulate_metric_thermostat():
     if isinstance(pubsub_message, dict) and 'data' in pubsub_message:
         payload = base64.b64decode(
             pubsub_message['data']).decode('utf-8').strip()
+    try:
+        j = json.loads(payload)
 
-    acc(json.loads(payload))
+        acc(json.loads(payload))
+    except:
+        app.logger.error("Unable to loads payload Json : {}".format(
+            payload))
 
     return ('', 204)
 
