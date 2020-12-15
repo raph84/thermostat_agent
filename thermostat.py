@@ -419,6 +419,16 @@ def accumulate_metric_thermostat():
 
     return ('', 204)
 
+
+@app.route('/metric/accumulate/', methods=['GET'])
+def get_accumulate_metric_thermostat():
+
+    accumulate = get_accumulate()
+    resp = accumulate.to_json()
+
+    return (resp, 200)
+
+
 def get_accumulate():
     accumulator = Accumulator()
     accumulator.load(2)

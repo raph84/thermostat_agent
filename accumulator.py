@@ -61,15 +61,16 @@ class Accumulator():
                     self.blob = None
                 else:
                     self.blob = blobs[i]
-                    
-                pickle_load = self.blob.download_as_string()
+
+                pickle_load = blobs[i].download_as_string()
                 e = pickle.loads(pickle_load)
                 if self.entity is None:
                     self.entity = e
                 else:
                     if (self.entity.dt < e.dt):
                         self.entity.dt = e.dt
-                    self.entity.temperature.append(e.temperature)
+                    self.entity.temperature = self.entity.temperature.append(
+                        e.temperature)
         else:
             self.entity = Accumulator_Entity()
             self.entity.dt = ceil_dt(utcnow(), 15)
