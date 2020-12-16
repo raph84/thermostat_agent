@@ -35,7 +35,7 @@ class Accumulator_Entity():
 
         print(len(self.temperature))
 
-    def to_json(self):
+    def to_dict(self):
         resp_df = self.temperature
         resp_df['dt'] = pd.to_datetime(resp_df.index)
         resp_df['dt'] = resp_df['dt'].apply(lambda x: x.isoformat())

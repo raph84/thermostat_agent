@@ -2,13 +2,11 @@ from datetime import datetime
 from pytz import timezone
 import pytz
 import iso8601
-
 from utils import utcnow, ceil_dt
-
 from accumulator_entity import Accumulator_Entity
-
 from google.cloud import storage
 import pickle
+import pandas as pd
 
 
 
@@ -99,9 +97,34 @@ class Accumulator():
         self.entities[0].entity.add_temperature(d, temp, humidity, motion, stove_exhaust_temp)
         self.store_and_release()
 
-    def to_json(self):
+    def to_dict(self):
         resp = []
         for e in self.entities:
-            resp.append(e.entity.to_json())
+            resp.append(e.entity.to_dict())
 
         return {"metrics":resp}
+
+
+    def func(motion):
+        return 1 if np.any(motion == True) else 0
+
+    def to_df(self):
+        df = pd.DataFrame()
+        for e in self.entities:
+            df = df.append(e.entity.temperature)
+        m = df['motion']
+        m = m.apply(lambda x: 1 if x else 0)
+        m = m.resample('3min').sum()
+        m = (m - m.mean()) / (m.max() - m.min())
+        m = m.apply(lambda x: x + 1)
+        m = m.ewm(halflife='6Min', times=m.index).mean()
+        m = m.apply(lambda x: x - 1)
+        m = m.resample('15min').sum()
+        # TODO percentile
+        temp = (m.max() - m.min()) / 2
+        m = m.apply(lambda x: True if x >= temp else False)
+
+        df = df.resample('15Min').mean().interpolate('linear')
+        df = df.merge(m,left_index=True, right_index=True)
+        
+        return df

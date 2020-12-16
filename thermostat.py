@@ -284,7 +284,7 @@ def digest(hourly_start=None,
            realtime_start=None,
            realtime_end=None):
 
-    therm_acc = get_accumulate().to_json()
+    therm_acc = get_accumulate().to_df()
     print(therm_acc)
     thermostat = get_metric_from_bucket(12)
     thermostat_df = pd.DataFrame(thermostat)
@@ -379,7 +379,7 @@ def test_accumulate():
     j = request.get_json()
     accumulator = acc(j)
 
-    resp = accumulator.to_json()
+    resp = accumulator.to_dict()
     print(resp)
     return resp
 
@@ -425,14 +425,14 @@ def accumulate_metric_thermostat():
 def get_accumulate_metric_thermostat():
 
     accumulate = get_accumulate()
-    resp = accumulate.to_json()
+    resp = accumulate.to_dict()
 
     return (resp, 200)
 
 
 def get_accumulate():
     accumulator = Accumulator()
-    accumulator.load(2)
+    accumulator.load(4)
 
     return accumulator
 
