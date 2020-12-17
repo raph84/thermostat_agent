@@ -277,3 +277,25 @@ resource "google_bigquery_table_iam_binding" "binding_thermostat_metric" {
     join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
   ]
 }
+
+resource "google_cloud_scheduler_job" "job" {
+  name             = "thermostat-next-action"
+  description      = "Determine next action and push it to thermostat"
+  schedule         = "15 * * * *"
+  time_zone        = "Etc/UTC"
+  attempt_deadline = "90s"
+
+  retry_config {
+    retry_count = 1
+    min_backoff_duration = "60s"
+  }
+
+  http_target {
+    http_method = "GET"
+    uri         = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/next_action"
+
+    oauth_token {
+      join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
+    }
+  }
+}
