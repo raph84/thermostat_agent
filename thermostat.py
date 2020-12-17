@@ -248,7 +248,7 @@ def get_weather_hourly(last=1, hourly_start=None, hourly_end=None):
     return resp.json()
 
 def get_set_point(date):
-    if date.hour > 21 or (date.hour < 5 and date.minute > 30):
+    if date.hour >= 21 or (date.hour <= 5 and date.minute >= 30):
         return 18
     else:
         return 22
@@ -293,7 +293,7 @@ def digest():
 
 
 def digest(
-        
+
         hourly_start=None,  #TODO remove
         hourly_end=None,  #TODO remove
         realtime_start=None,  #TODO remove
@@ -309,15 +309,17 @@ def digest(
     current_realtime = realtime.pop(0)
     date_t = pd.to_datetime(x_current_thermostat.iloc[0]['datetime'])
     date_t = round_date(date_t)
+    indoor_setpoint = get_set_point(date_t)
+    app.logger.info("Next Action Setpoint : {}".format(indoor_setpoint))
     result = {"digest": {}}
     result["digest"]["current"] = {
         "Htg SP": 22,
-        "Indoor Temp. Setpoint": get_set_point(date_t),
+        "Indoor Temp. Setpoint": indoor_setpoint,
         "Occupancy Flag": bool(x_current_thermostat.iloc[0]['motion']),
         "PPD": 99,
-        "Coil Power": 0,
+        "Coil Power": 0, # TODO use stove exhaust temp
         "MA Temp.": 18,
-        "Sys Out Temp.": 23,
+        "Sys Out Temp.": x_current_thermostat.iloc[0]['temperature'],
         "dt": format_date(date_t),
         "Outdoor Temp.": current_realtime['temp']['value'],
         "Outdoor RH": current_realtime['humidity']['value'],
@@ -380,7 +382,8 @@ def next_action():
 
     url_query = url_gnu_rl + '/mpc/'
     resp = query(url_query, url_gnu_rl, 'POST', body)
-    return resp.text
+    app.logger.info("Next Action Result : {}".format(resp.json()))
+    return resp.json()
 
 
 @app.route('/accumulate/', methods=['POST'])
