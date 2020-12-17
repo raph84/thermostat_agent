@@ -43,6 +43,10 @@ bucket = storage_client.bucket(bucket_name)
 
 project_id = os.environ['PROJECT_ID']
 
+FORMAT_DATE_SEP = "%Y-%m-%d %H:%M:%S"
+FORMAT_DATE = "%Y%m%d %H%M%S"
+FORMAT_DATE_DASH = "%Y%m%d-%H%M%S"
+
 app = Flask(__name__)
 app.config["DEBUG"] = True
 
@@ -71,7 +75,7 @@ def get_metric_list_from_bucket():
     for _b in blobs:
         filename = ' '.join(_b.name.rsplit('-', 2)[1:3])
         try:
-            dateobj = datetime.strptime(filename,"%Y%m%d %H%M%S")
+            dateobj = datetime.strptime(filename,FORMAT_DATE)
             item = {
                 "name": _b.name,
                 "dateobj": dateobj
@@ -110,7 +114,7 @@ def get_metric_from_bucket(last=0, pref='thermostat', last_file=None, first_file
             j["file"] = blobs[i].name
 
             j['datetime'] = datetime.fromtimestamp(
-                j['timestamp']).strftime("%Y-%m-%d %H:%M:%S")
+                j['timestamp']).strftime(FORMAT_DATE_SEP)
             j['dateobj'] = datetime.fromtimestamp(j['timestamp'])
             last_json.append(j)
         except NameError:
@@ -152,7 +156,7 @@ def store_metric_thermostat():
     if isinstance(pubsub_message, dict) and 'data' in pubsub_message:
         payload = base64.b64decode(pubsub_message['data']).decode('utf-8').strip()
 
-    filename = "thermostat-" + datetime.now().strftime("%Y%m%d-%H%M%S")
+    filename = "thermostat-" + datetime.now().strftime(FORMAT_DATE_DASH)
     create_file(payload, filename)
 
     return ('', 204)
@@ -184,13 +188,13 @@ def site_map():
 def resample_disturbances(data):
     ind = []
     for d in data:
-        ind.append(datetime.strptime(d["dt"],"%Y-%m-%d %H:%M:%S"))
+        ind.append(datetime.strptime(d["dt"],FORMAT_DATE_SEP))
     df = pd.DataFrame(data, index=ind)
     df = df.resample('15Min').interpolate(method='linear')
     df['dt'] = df.index.values
     data2 = df.to_dict('records')
     for d in data2:
-        d['dt'] = d['dt'].to_pydatetime().strftime("%Y-%m-%d %H:%M:%S")
+        d['dt'] = d['dt'].to_pydatetime().strftime(FORMAT_DATE_SEP)
     #data2['dt'] = data2['dt'].to_pydatetime().strftime("%Y-%m-%d %H:%M:%S")
     return data2
 
@@ -206,6 +210,15 @@ def query(url_query, audience, method='GET', body=None):
         url_query,
         headers={'Authorization': 'Bearer {}'.format(open_id_connect_token)},
         json=body)
+
+
+    try:
+        resp.json()
+    except:
+        app.logger.error("Error while querying : {} - {}".format(
+            url_query, resp.reason))
+        pass
+
     return resp
 
 
@@ -252,7 +265,7 @@ def map_climacell_data(data):
                              '%Y-%m-%dT%H:%M:%S.%f%z')
     date = round_date(date)
     return {
-        "dt": date.strftime("%Y-%m-%d %H:%M:%S"),
+        "dt": date.strftime(FORMAT_DATE_SEP),
         "Indoor Temp. Setpoint": get_set_point(date),
         "Outdoor Temp.": data['temp']['value'],
         "Outdoor RH": data['humidity']['value'],
@@ -263,7 +276,7 @@ def map_climacell_data(data):
     }
 
 def format_date(date):
-    date = date.strftime("%Y-%m-%d %H:%M:%S")
+    date = date.strftime(FORMAT_DATE_SEP)
     return date
 
 @app.route("/digest")
@@ -279,42 +292,49 @@ def digest():
                     realtime_end)
 
 
-def digest(hourly_start=None,
-           hourly_end=None,
-           realtime_start=None,
-           realtime_end=None):
+def digest(
+        
+        hourly_start=None,  #TODO remove
+        hourly_end=None,  #TODO remove
+        realtime_start=None,  #TODO remove
+        realtime_end=None,
+        hourly_last=1,
+        realtime_last=14,):
 
     therm_acc = get_accumulate().to_df()
     print(therm_acc)
-    thermostat = get_metric_from_bucket(12)
-    thermostat_df = pd.DataFrame(thermostat)
-    thermostat_df = thermostat_df.set_index('dateobj')
-    hourly = get_weather_hourly(hourly_start=hourly_start,
-                                hourly_end=hourly_end)
-    realtime = get_weather_realtime(realtime_start=realtime_start,
-                                    realtime_end=realtime_end)
+    #thermostat = get_metric_from_bucket(12)
+    #thermostat_df = pd.DataFrame(thermostat)
+    #thermostat_df = thermostat_df.set_index('dateobj')
+    #hourly = get_weather_hourly(hourly_start=hourly_start,
+    #                            hourly_end=hourly_end)
+    hourly = get_weather_hourly(last=hourly_last)
+    #realtime = get_weather_realtime(realtime_start=realtime_start,
+    #                                realtime_end=realtime_end)
+    realtime = get_weather_realtime(last=realtime_last)
     #result = {"digest": {"date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}}
     current_thermostat = thermostat.pop(0)
+    x_current_thermostat = therm_acc.tail(1)
     current_realtime = realtime.pop(0)
     date_t = datetime.strptime(current_thermostat['datetime'],
-                               "%Y-%m-%d %H:%M:%S")
+                               FORMAT_DATE_SEP)
     date_t = round_date(date_t)
     result = {"digest": {}}
     result["digest"]["current"] = {
-        "Htg SP": 12.8,
+        "Htg SP": 22,
         "Indoor Temp. Setpoint": get_set_point(date_t),
-        "Occupancy Flag": current_thermostat['motion'],
+        "Occupancy Flag": bool(x_current_thermostat.iloc[0]['motion']),
         "PPD": 99,
         "Coil Power": 0,
-        "MA Temp.": 8.49,
-        "Sys Out Temp.": 8.86,
+        "MA Temp.": 18,
+        "Sys Out Temp.": 23,
         "dt": format_date(date_t),
         "Outdoor Temp.": current_realtime['temp']['value'],
         "Outdoor RH": current_realtime['humidity']['value'],
         "Wind Speed": current_realtime['wind_speed']['value'],
         "Wind Direction": current_realtime['wind_direction']['value'],
         "Direct Solar Rad.": current_realtime['surface_shortwave_radiation']['value'] or 0.0,
-        "Indoor Temp.": current_thermostat['temperature']
+        "Indoor Temp.": x_current_thermostat.iloc[0]['temperature']
     }
     result["digest"]["date"] = format_date(date_t)
     disturbances = []
@@ -326,7 +346,7 @@ def digest(hourly_start=None,
         if date_r < date_t:
             mapping = map_climacell_data(r)
             date_r_pd = pd.to_datetime(date_r)
-            nearest_t = thermostat_df.iloc[thermostat_df.index.get_loc(
+            nearest_t = therm_acc.iloc[therm_acc.index.get_loc(
                 date_r_pd, method='nearest')]
             mapping["Indoor Temp."] = nearest_t["temperature"]
             if nearest_t["motion"]:
@@ -341,7 +361,7 @@ def digest(hourly_start=None,
                                    '%Y-%m-%dT%H:%M:%S.%f%z')
         date_h = date_h.replace(tzinfo=None)
         date_temp = datetime.strptime(result["digest"]["date"],
-                                   "%Y-%m-%d %H:%M:%S")
+                                   FORMAT_DATE_SEP)
         diff = ((date_h - date_temp).total_seconds() // 3600)
         print(h['observation_time']['value'])
         if diff < 4 and diff >= 0:
@@ -366,6 +386,7 @@ def next_action():
     hourly_end = request.args.get('hourly_end', None)
     realtime_start = request.args.get('realtime_start', None)
     realtime_end = request.args.get('realtime_end', None)
+
 
     body = digest(hourly_start, hourly_end, realtime_start, realtime_end)
 
@@ -432,7 +453,7 @@ def get_accumulate_metric_thermostat():
 
 def get_accumulate():
     accumulator = Accumulator()
-    accumulator.load(4)
+    accumulator.load(50)
 
     return accumulator
 

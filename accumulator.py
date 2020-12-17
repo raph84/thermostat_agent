@@ -105,9 +105,6 @@ class Accumulator():
         return {"metrics":resp}
 
 
-    def func(motion):
-        return 1 if np.any(motion == True) else 0
-
     def to_df(self):
         df = pd.DataFrame()
         for e in self.entities:

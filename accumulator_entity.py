@@ -33,12 +33,11 @@ class Accumulator_Entity():
             self.dt = ceil_dt(d, 15)
             self.temperature = df_t
 
-        print(len(self.temperature))
-
     def to_dict(self):
         resp_df = self.temperature
         resp_df['dt'] = pd.to_datetime(resp_df.index)
         resp_df['dt'] = resp_df['dt'].apply(lambda x: x.isoformat())
+        resp_df.sort_index(inplace=True)
         r = resp_df.to_dict(orient='records')
         resp = {
             "dt": self.dt.isoformat(),
