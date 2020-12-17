@@ -383,6 +383,8 @@ def next_action():
     url_query = url_gnu_rl + '/mpc/'
     resp = query(url_query, url_gnu_rl, 'POST', body)
     app.logger.info("Next Action Result : {}".format(resp.json()))
+    app.logger.info("NextAction_Setpoint:{}".format(
+        resp.json()['sat_stpt']))
     return resp.json()
 
 

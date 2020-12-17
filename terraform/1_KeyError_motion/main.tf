@@ -281,7 +281,7 @@ resource "google_bigquery_table_iam_binding" "binding_thermostat_metric" {
 resource "google_cloud_scheduler_job" "job" {
   name             = "thermostat-next-action"
   description      = "Determine next action and push it to thermostat"
-  schedule         = "15 * * * *"
+  schedule         = "*/15 * * * *"
   time_zone        = "Etc/UTC"
   attempt_deadline = "320s"
   project = local.project_id
@@ -297,7 +297,7 @@ resource "google_cloud_scheduler_job" "job" {
 
     oidc_token {
       service_account_email = google_service_account.thermostat-agent.email
-      
+
     }
   }
 }
