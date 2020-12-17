@@ -318,7 +318,7 @@ data "google_pubsub_topic" "environment-sensor-topic" {
 
 resource "google_pubsub_subscription" "environment-sensor-sub" {
   name  = "environment-sensor"
-  topic = google_pubsub_topic.environment-sensor-topic.name
+  topic = data.google_pubsub_topic.environment-sensor-topic.name
   project = "raph-iot"
 
   ack_deadline_seconds = 20
