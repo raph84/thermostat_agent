@@ -302,11 +302,11 @@ resource "google_cloud_scheduler_job" "job" {
 
   http_target {
     http_method = "GET"
-    uri         = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/next_action"
+    uri         = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/next-action"
 
     oidc_token {
       service_account_email = google_service_account.thermostat-agent.email
-      audience = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/next_action"
+      audience = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/next-action"
     }
   }
 }
