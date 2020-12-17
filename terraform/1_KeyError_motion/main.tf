@@ -146,6 +146,14 @@ resource "google_cloud_run_service_iam_member" "iam_thermostat-iot" {
   location = "us-east4"
   member   = "serviceAccount:thermostat-iot@raph-iot.iam.gserviceaccount.com"
 }
+resource "google_cloud_run_service_iam_member" "thermostat-agent-id" {
+  project  = local.project_id
+  service  = "thermostat-agent"
+  role     = "roles/run.invoker"
+  location = "us-east4"
+  member   = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
+  ## Identity used by Cloud Scheduler to invoke next_action
+}
 resource "google_cloud_run_service_iam_member" "iam-api-call" {
   project  = local.project_id
   service  = "thermostat-agent"
@@ -294,5 +302,9 @@ resource "google_cloud_scheduler_job" "job" {
   http_target {
     http_method = "GET"
     uri         = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/next_action"
+
+    oidc_token {
+      service_account_email = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
+    }
   }
 }
