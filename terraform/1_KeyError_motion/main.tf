@@ -310,3 +310,34 @@ resource "google_cloud_scheduler_job" "job" {
     }
   }
 }
+
+resource "google_pubsub_topic" "environment-sensor-topic" {
+  name = "environment-sensor"
+  project = "raph-iot"
+}
+
+resource "google_pubsub_subscription" "environment-sensor-sub" {
+  name  = "environment-sensor"
+  topic = google_pubsub_topic.environment-sensor-topic.name
+  project = "raph-iot"
+
+  ack_deadline_seconds = 20
+  message_retention_duration = "259200s"
+  enable_message_ordering    = false
+
+  labels = {
+    project = "thermostat"
+  }
+
+  push_config {
+    push_endpoint = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/metric/environment-sensor"
+
+    attributes = {
+      x-goog-version = "v1"
+    }
+  }
+
+  retry_policy {
+    minimum_backoff = "30s"
+  }
+}
