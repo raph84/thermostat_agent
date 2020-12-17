@@ -303,17 +303,8 @@ def digest(
 
     therm_acc = get_accumulate().to_df()
     print(therm_acc)
-    #thermostat = get_metric_from_bucket(12)
-    #thermostat_df = pd.DataFrame(thermostat)
-    #thermostat_df = thermostat_df.set_index('dateobj')
-    #hourly = get_weather_hourly(hourly_start=hourly_start,
-    #                            hourly_end=hourly_end)
     hourly = get_weather_hourly(last=hourly_last)
-    #realtime = get_weather_realtime(realtime_start=realtime_start,
-    #                                realtime_end=realtime_end)
     realtime = get_weather_realtime(last=realtime_last)
-    #result = {"digest": {"date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}}
-    current_thermostat = thermostat.pop(0)
     x_current_thermostat = therm_acc.tail(1)
     current_realtime = realtime.pop(0)
     date_t = datetime.strptime(current_thermostat['datetime'],
