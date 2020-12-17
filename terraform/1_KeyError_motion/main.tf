@@ -294,9 +294,5 @@ resource "google_cloud_scheduler_job" "job" {
   http_target {
     http_method = "GET"
     uri         = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/next_action"
-
-    oauth_token {
-      service_account_email = google_service_account.thermostat-agent.email
-    }
   }
 }
