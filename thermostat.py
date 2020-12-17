@@ -302,13 +302,12 @@ def digest(
         realtime_last=14,):
 
     therm_acc = get_accumulate().to_df()
-    print(therm_acc)
     hourly = get_weather_hourly(last=hourly_last)
     realtime = get_weather_realtime(last=realtime_last)
+    therm_acc['datetime'] = therm_acc.index
     x_current_thermostat = therm_acc.tail(1)
     current_realtime = realtime.pop(0)
-    date_t = datetime.strptime(current_thermostat['datetime'],
-                               FORMAT_DATE_SEP)
+    date_t = pd.to_datetime(x_current_thermostat.iloc[0]['datetime'])
     date_t = round_date(date_t)
     result = {"digest": {}}
     result["digest"]["current"] = {
@@ -354,9 +353,7 @@ def digest(
         date_temp = datetime.strptime(result["digest"]["date"],
                                    FORMAT_DATE_SEP)
         diff = ((date_h - date_temp).total_seconds() // 3600)
-        print(h['observation_time']['value'])
         if diff < 4 and diff >= 0:
-            print(h['observation_time']['value'])
             mapping = map_climacell_data(h)
             mapping["Occupancy Flag"] = 0
 
