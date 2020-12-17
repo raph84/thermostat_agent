@@ -311,7 +311,7 @@ resource "google_cloud_scheduler_job" "job" {
   }
 }
 
-resource "google_pubsub_topic" "environment-sensor-topic" {
+data "google_pubsub_topic" "environment-sensor-topic" {
   name = "environment-sensor"
   project = "raph-iot"
 }
