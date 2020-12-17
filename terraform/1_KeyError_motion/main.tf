@@ -295,8 +295,9 @@ resource "google_cloud_scheduler_job" "job" {
   project = local.project_id
 
   retry_config {
-    retry_count = 1
+    retry_count = 2
     min_backoff_duration = "60s"
+    max_retry_duration = "40s"
   }
 
   http_target {
