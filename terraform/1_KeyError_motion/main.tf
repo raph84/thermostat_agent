@@ -317,7 +317,7 @@ data "google_pubsub_topic" "environment-sensor-topic" {
 }
 
 resource "google_pubsub_subscription" "environment-sensor-sub" {
-  name  = "environment-sensor"
+  name  = "SUBSCRIPTION_THERMOSTAT_ENVIRONMENT_SENSOR"
   topic = data.google_pubsub_topic.environment-sensor-topic.name
   project = "raph-iot"
 
