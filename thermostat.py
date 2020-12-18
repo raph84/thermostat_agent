@@ -138,7 +138,7 @@ def get_metric_thermostat():
     return last_json
 
 
-@app.route('/metric/environment-sensor/', methods=['POST'])
+@app.route('/metric/thermostat/', methods=['POST'])
 def store_metric_thermostat():
     envelope = request.get_json()
     if not envelope:

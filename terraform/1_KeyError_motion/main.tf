@@ -325,7 +325,7 @@ resource "google_pubsub_subscription" "environment-sensor-sub" {
   message_retention_duration = "259200s"
   enable_message_ordering    = false
 
-  filter = "attribute.deviceId=\"environment-sensor\""
+  filter = "attributes.deviceId=\"environment-sensor\""
 
   labels = {
     project = "thermostat"
