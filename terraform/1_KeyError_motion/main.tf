@@ -337,6 +337,11 @@ resource "google_pubsub_subscription" "environment-sensor-sub" {
     attributes = {
       x-goog-version = "v1"
     }
+
+    oidc_token {
+      service_account_email = google_service_account.thermostat-agent.email
+      audience = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/metric/environment-sensor"
+    }
   }
 
   retry_policy {
