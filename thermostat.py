@@ -26,6 +26,7 @@ import pandas as pd
 from pytz import timezone
 import pytz
 import iso8601
+import re
 
 from accumulator import Accumulator
 
@@ -137,7 +138,7 @@ def get_metric_thermostat():
     return last_json
 
 
-@app.route('/metric/thermostat/', methods=['POST'])
+@app.route('/metric/environment-sensor/', methods=['POST'])
 def store_metric_thermostat():
     envelope = request.get_json()
     if not envelope:
@@ -162,7 +163,45 @@ def store_metric_thermostat():
     return ('', 204)
 
 
+@app.route('/metric/thermostat/', methods=['GET'])
+def get_metric_thermostat():
 
+    last = request.args.get('last', 1)
+
+    last_json = get_metric_from_bucket(last=last,
+                                       pref="environment_sensor_basement-")
+    last_json = json.dumps(last_json)
+
+    return last_json
+
+# device_id:environment-sensor; location:house.basement; temperature:21.69;
+@app.route('/metric/environment-sensor/', methods=['POST'])
+def store_metric_thermostat():
+    envelope = request.get_json()
+    if not envelope:
+        msg = 'no Pub/Sub message received'
+        print(f'error: {msg}')
+        return f'Bad Request: {msg}', 400
+
+    if not isinstance(envelope, dict) or 'message' not in envelope:
+        msg = 'invalid Pub/Sub message format'
+        print(f'error: {msg}')
+        return f'Bad Request: {msg}', 400
+
+    pubsub_message = envelope['message']
+
+    payload = ''
+    if isinstance(pubsub_message, dict) and 'data' in pubsub_message:
+        payload = base64.b64decode(
+            pubsub_message['data']).decode('utf-8').strip()
+
+    if "location:house.basement" in payload:
+        json_content = {"temperature": re.match("temperature\:([0-9]+\.[0-9]+)", payload),
+                        "original_payload": payload}
+        filename = "environment_sensor_basement-" + datetime.now().strftime(FORMAT_DATE_DASH)
+        create_file(json.dumps(json_content), filename)
+
+    return ('', 204)
 
 
 def has_no_empty_params(rule):
