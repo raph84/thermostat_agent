@@ -163,8 +163,8 @@ def store_metric_thermostat():
     return ('', 204)
 
 
-@app.route('/metric/thermostat/', methods=['GET'])
-def get_metric_thermostat():
+@app.route('/metric/environment-sensor/', methods=['GET'])
+def get_metric_environment():
 
     last = request.args.get('last', 1)
 
@@ -176,7 +176,7 @@ def get_metric_thermostat():
 
 # device_id:environment-sensor; location:house.basement; temperature:21.69;
 @app.route('/metric/environment-sensor/', methods=['POST'])
-def store_metric_thermostat():
+def store_metric_environment():
     envelope = request.get_json()
     if not envelope:
         msg = 'no Pub/Sub message received'
