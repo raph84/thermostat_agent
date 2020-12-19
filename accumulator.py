@@ -75,21 +75,30 @@ class Accumulator():
                 a = Accumulator.A(e, blobs[i])
                 self.entities.append(a)
         else:
-            entity = Accumulator_Entity()
-            entity.dt = ceil_dt(utcnow(), 15)
+            a = create_and_store()
 
-            filename = self.get_filename(entity.dt)
-
-            blob = self.bucket.blob(filename)
-            pickle_dump = pickle.dumps(entity)
-            blob.upload_from_string(data=pickle_dump)
-
-            a = Accumulator.A(entity, blob)
             self.entities = self.entities.append(a)
 
-        #if hold:
-        #    self.blob.temporary_hold = True
-        #    self.blob.patch()
+
+        last_date = self.entities[0].entity.dt
+        now = utcnow()
+        if last_date.day != now.day:
+            a = create_and_store()
+            self.entities = self.entities.append(a)
+
+    def create_and_store():
+        entity = Accumulator_Entity()
+        entity.dt = ceil_dt(utcnow(), 15)
+
+        filename = self.get_filename(entity.dt)
+
+        blob = self.bucket.blob(filename)
+        pickle_dump = pickle.dumps(entity)
+        blob.upload_from_string(data=pickle_dump)
+
+        a = Accumulator.A(entity, blob)
+
+        return a
 
     def add_temperature(self, d, temp=None, humidity=None, motion=None, stove_exhaust_temp=None, temp_basement=None):
         self.load_and_hold()
@@ -123,5 +132,5 @@ class Accumulator():
 
         df = df.resample('15Min').mean().interpolate('linear')
         df = df.merge(m,left_index=True, right_index=True)
-        
+
         return df
