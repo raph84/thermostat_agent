@@ -201,9 +201,9 @@ def store_metric_environment():
         filename = "environment_sensor_basement-" + datetime.now().strftime(FORMAT_DATE_DASH)
         create_file(json.dumps(json_content), filename)
 
-    accumulator = Accumulator()
-    n = utcnow()
-    accumulator.add_temperature(n, temp_basement=json_content.get('temperature'))
+        accumulator = Accumulator()
+        n = utcnow()
+        accumulator.add_temperature(n, temp_basement=json_content.get('temperature'))
 
     return ('', 204)
 
