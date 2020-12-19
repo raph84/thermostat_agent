@@ -349,6 +349,7 @@ def digest(
     realtime = get_weather_realtime(last=realtime_last)
     therm_acc['datetime'] = therm_acc.index
     x_current_thermostat = therm_acc.tail(1)
+    app.logger.debug("temp_basement : {}".format(x_current_thermostat.iloc[0].get('temp_basement', default="not available")))
     current_realtime = realtime.pop(0)
     date_t = pd.to_datetime(x_current_thermostat.iloc[0]['datetime'])
     date_t = round_date(date_t)
@@ -362,7 +363,7 @@ def digest(
         "PPD": 99,
         "Coil Power": 0, # TODO use stove exhaust temp
         "MA Temp.": 18,
-        "Sys Out Temp.": x_current_thermostat.iloc[0]['temperature'],
+        "Sys Out Temp.": x_current_thermostat.iloc[0].get('temp_basement') or x_current_thermostat.iloc[0]['temperature'],
         "dt": format_date(date_t),
         "Outdoor Temp.": current_realtime['temp']['value'],
         "Outdoor RH": current_realtime['humidity']['value'],
