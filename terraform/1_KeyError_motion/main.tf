@@ -323,7 +323,7 @@ resource "google_pubsub_subscription" "environment-sensor-sub" {
 
   ack_deadline_seconds = 20
   message_retention_duration = "259200s"
-  enable_message_ordering    = false
+  enable_message_ordering    = true
 
   filter = "attributes.deviceId=\"environment-sensor\""
 
