@@ -74,7 +74,7 @@ provider "docker" {
     username = "oauth2accesstoken"
     password = data.google_client_config.default.access_token
   }
-  #host = "npipe:////.//pipe//docker_engine"
+  host = "npipe:////.//pipe//docker_engine"
 }
 
 data "docker_registry_image" "thermostat-agent" {
@@ -317,34 +317,37 @@ data "google_pubsub_topic" "environment-sensor-topic" {
 }
 
 resource "google_pubsub_subscription" "environment-sensor-sub" {
-  name  = "SUBSCRIPTION_THERMOSTAT_ENVIRONMENT_SENSOR"
-  topic = data.google_pubsub_topic.environment-sensor-topic.name
-  project = "raph-iot"
+    ack_deadline_seconds       = 20
+    enable_message_ordering    = true
+    filter                     = "attributes.deviceId=\"environment-sensor\""
+    labels                     = {
+        "project" = "thermostat"
+    }
+    message_retention_duration = "259200s"
+    name                       = "SUBSCRIPTION_THERMOSTAT_ENVIRONMENT_SENSOR"
+    project                    = "raph-iot"
+    retain_acked_messages      = false
+    topic                      = "projects/raph-iot/topics/environment-sensor"
 
-  ack_deadline_seconds = 20
-  message_retention_duration = "259200s"
-  enable_message_ordering    = true
-
-  filter = "attributes.deviceId=\"environment-sensor\""
-
-  labels = {
-    project = "thermostat"
-  }
-
-  push_config {
-    push_endpoint = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/metric/environment-sensor/"
-
-    attributes = {
-      x-goog-version = "v1"
+    expiration_policy {
+        ttl = "2678400s"
     }
 
-    oidc_token {
-      service_account_email = "thermostat-iot@raph-iot.iam.gserviceaccount.com"
-      audience = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/metric/environment-sensor/"
-    }
-  }
+    push_config {
+        attributes    = {}
+        push_endpoint = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/metric/environment-sensor/"
 
-  retry_policy {
-    minimum_backoff = "30s"
-  }
+        oidc_token {
+            audience              = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/metric/environment-sensor/"
+            service_account_email = "thermostat-iot@raph-iot.iam.gserviceaccount.com"
+        }
+    }
+
+    retry_policy {
+        maximum_backoff = "600s"
+        minimum_backoff = "30s"
+    }
+
+    timeouts {}
 }
+
