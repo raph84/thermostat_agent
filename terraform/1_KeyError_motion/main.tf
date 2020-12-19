@@ -111,6 +111,11 @@ resource "google_cloud_run_service" "default" {
           value = "thermostat-292016"
         }
 
+        env {
+          name  = "LEVEL"
+          value = "debug"
+        }
+
         ports {
           container_port = 8080
         }
