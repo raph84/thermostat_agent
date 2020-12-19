@@ -91,10 +91,10 @@ class Accumulator():
         #    self.blob.temporary_hold = True
         #    self.blob.patch()
 
-    def add_temperature(self, d, temp=None, humidity=None, motion=None, stove_exhaust_temp=None):
+    def add_temperature(self, d, temp=None, humidity=None, motion=None, stove_exhaust_temp=None, temp_basement=None):
         self.load_and_hold()
 
-        self.entities[0].entity.add_temperature(d, temp, humidity, motion, stove_exhaust_temp)
+        self.entities[0].entity.add_temperature(d, temp, humidity, motion, stove_exhaust_temp, temp_basement)
         self.store_and_release()
 
     def to_dict(self):

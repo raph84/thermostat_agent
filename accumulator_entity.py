@@ -12,19 +12,25 @@ class Accumulator_Entity():
                   temp=None,
                   humidity=None,
                   motion=None,
-                  stove_exhaust_temp=None):
+                  stove_exhaust_temp=None,
+                  temp_basement=None):
         t = {
             "temperature": temp,
             "humidity": humidity,
             "stove_exhaust_temp": stove_exhaust_temp,
-            "motion": motion
+            "motion": motion,
+            "temp_basement": temp_basement
         }
 
         return t
 
-    def add_temperature(self, d, temp=None, humidity=None, motion=None, stove_exhaust_temp=None):
+    def add_temperature(self, d, temp=None, humidity=None, motion=None, stove_exhaust_temp=None, temp_basement=None):
 
-        t = self.temp_dict(temp, humidity, motion, stove_exhaust_temp)
+        t = self.temp_dict(temp,
+                           humidity,
+                           motion,
+                           stove_exhaust_temp,
+                           temp_basement)
         df_t = pd.DataFrame(t, index=[d])
 
         if self.temperature is not None:
