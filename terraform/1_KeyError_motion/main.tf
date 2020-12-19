@@ -332,7 +332,7 @@ resource "google_pubsub_subscription" "environment-sensor-sub" {
   }
 
   push_config {
-    push_endpoint = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/metric/environment-sensor"
+    push_endpoint = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/metric/environment-sensor/"
 
     attributes = {
       x-goog-version = "v1"
@@ -340,7 +340,7 @@ resource "google_pubsub_subscription" "environment-sensor-sub" {
 
     oidc_token {
       service_account_email = "thermostat-iot@raph-iot.iam.gserviceaccount.com"
-      audience = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/metric/environment-sensor"
+      audience = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/metric/environment-sensor/"
     }
   }
 
