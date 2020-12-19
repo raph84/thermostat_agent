@@ -484,7 +484,11 @@ def get_accumulate_metric_thermostat():
 
     load = int(request.args.get('load', None))
 
-    accumulate = get_accumulate(load)
+    if load>=1:
+        accumulate = get_accumulate(load)
+    else:
+        accumulate = get_accumulate()
+        
     resp = accumulate.to_dict()
 
     return (resp, 200)
