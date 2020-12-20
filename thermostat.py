@@ -202,7 +202,7 @@ def store_metric_environment():
         filename = "environment_sensor_basement-" + datetime.now().strftime(FORMAT_DATE_DASH)
         create_file(json.dumps(json_content), filename)
 
-        accumulator = Accumulator()
+        accumulator = Accumulator(app.logger)
         n = utcnow()
         try:
             accumulator.add_temperature(n, temp_basement=json_content.get('temperature'))
@@ -447,7 +447,7 @@ def test_accumulate():
 
 
 def acc(j):
-    accumulator = Accumulator()
+    accumulator = Accumulator(app.logger)
     n = utcnow()
     try:
         accumulator.add_temperature(n, temp=j.get('temperature'), humidity=j.get('humidity'), motion=j.get('motion'), stove_exhaust_temp=j.get('stove_exhaust_temp'))
@@ -504,7 +504,7 @@ def get_accumulate_metric_thermostat():
 
 
 def get_accumulate(load=1):
-    accumulator = Accumulator()
+    accumulator = Accumulator(app.logger)
     accumulator.load(load,hold=True)
 
     return accumulator

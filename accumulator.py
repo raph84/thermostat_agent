@@ -28,7 +28,10 @@ class Accumulator():
             except:
                 print("There was no hold.")
 
-    def __init__(self):
+    def __init__(self, logger):
+
+        self.logger = logger
+
         self.entities = []
         # Instantiates a client
         self.storage_client = storage.Client()
@@ -111,10 +114,23 @@ class Accumulator():
         if temp is None and humidity == None and motion == None and stove_exhaust_temp == None and temp_basement == None:
             raise ValueError
 
-        self.load(n=1,hold=True)
+        self.load(n=1, hold=True)
+
+        part = ceil_dt(d, 15)
+        if self.entities[0].entity.dt <= part:
+            self.logger.info(
+                "Last partition was for {}. Now we need a new one for {}.".
+                format(self.entities[0].entity.dt.isoformat(), part.isoformat()))
+
+            self.entities = [self.create_and_store()]
 
         self.entities[0].entity.add_temperature(d, temp, humidity, motion, stove_exhaust_temp, temp_basement)
         self.store_and_release()
+        try:
+            self.entities[0].blob.temporary_hold = True
+            self.entities[0].blob.patch()
+        except Exception as ex:
+            self.logger.warn("Blob HOLD failed : {}".format(ex))
 
     def to_dict(self):
         resp = []
