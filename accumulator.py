@@ -47,6 +47,20 @@ class Accumulator():
         self.blob.temporary_hold = False
         self.blob.patch()
 
+    def create_and_store():
+        entity = Accumulator_Entity()
+        entity.dt = ceil_dt(utcnow(), 15)
+
+        filename = self.get_filename(entity.dt)
+
+        blob = self.bucket.blob(filename)
+        pickle_dump = pickle.dumps(entity)
+        blob.upload_from_string(data=pickle_dump)
+
+        a = Accumulator.A(entity, blob)
+
+        return a
+
     def load_and_hold(self):
         self.load(1)
 
@@ -86,19 +100,7 @@ class Accumulator():
             a = create_and_store()
             self.entities = self.entities.append(a)
 
-    def create_and_store():
-        entity = Accumulator_Entity()
-        entity.dt = ceil_dt(utcnow(), 15)
 
-        filename = self.get_filename(entity.dt)
-
-        blob = self.bucket.blob(filename)
-        pickle_dump = pickle.dumps(entity)
-        blob.upload_from_string(data=pickle_dump)
-
-        a = Accumulator.A(entity, blob)
-
-        return a
 
     def add_temperature(self, d, temp=None, humidity=None, motion=None, stove_exhaust_temp=None, temp_basement=None):
         self.load_and_hold()
