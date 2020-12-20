@@ -196,7 +196,8 @@ def store_metric_environment():
             pubsub_message['data']).decode('utf-8').strip()
 
     if "location:house.basement" in payload:
-        json_content = {"temperature": re.match("temperature\:([0-9]+\.[0-9]+)", payload),
+        print(re.match("temperature\:([0-9]+\.[0-9]+)", payload))
+        json_content = {"temperature": float(re.match(".+temperature:([0-9]+\.[0-9]+)", payload).groups()[0]),
                         "original_payload": payload}
         filename = "environment_sensor_basement-" + datetime.now().strftime(FORMAT_DATE_DASH)
         create_file(json.dumps(json_content), filename)
@@ -504,7 +505,7 @@ def get_accumulate_metric_thermostat():
 
 def get_accumulate(load=1):
     accumulator = Accumulator()
-    accumulator.load(load)
+    accumulator.load(load,hold=True)
 
     return accumulator
 

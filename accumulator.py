@@ -21,6 +21,13 @@ class Accumulator():
             self.entity = entity
             self.blob = blob
 
+        def release(self):
+            try:
+                self.blob.temporary_hold = False
+                self.blob.patch()
+            except:
+                print("There was no hold.")
+
     def __init__(self):
         self.entities = []
         # Instantiates a client
@@ -28,25 +35,24 @@ class Accumulator():
         # The name for the new bucket
         self.bucket = self.storage_client.bucket(self.bucket_name)
 
+    def __del__(self):
+        for e in self.entities:
+            print("Accumulator deletion")
+            e.release()
+
     def get_filename(self, dt):
         filename = dt.isoformat()
         filename = self.PREFIX + filename
         return filename
 
     def store_and_release(self):
+
         self.entities[0].entity.house_keeping()
         pickle_dump = pickle.dumps(self.entities[0].entity)
-        #try:
-        #    self.blob.temporary_hold = False
-        #    self.blob.patch()
-        #except:
-        #    print("There was no hold.")
-        blob = self.bucket.get_blob(self.entities[0].blob.name)
-        blob.upload_from_string(data=pickle_dump)
 
-    def release(self):
-        self.blob.temporary_hold = False
-        self.blob.patch()
+        self.entities[0].blob = self.bucket.get_blob(self.entities[0].blob.name)
+        self.entities[0].blob.upload_from_string(data=pickle_dump)
+        self.entities[0].release()
 
     def create_and_store(self):
         entity = Accumulator_Entity()
@@ -61,9 +67,6 @@ class Accumulator():
         a = Accumulator.A(entity, blob)
 
         return a
-
-    def load_and_hold(self):
-        self.load(1)
 
     def load(self, n=1, hold=False):
         self.entities = []
@@ -108,8 +111,7 @@ class Accumulator():
         if temp is None and humidity == None and motion == None and stove_exhaust_temp == None and temp_basement == None:
             raise ValueError
 
-
-        self.load_and_hold()
+        self.load(n=1,hold=True)
 
         self.entities[0].entity.add_temperature(d, temp, humidity, motion, stove_exhaust_temp, temp_basement)
         self.store_and_release()
