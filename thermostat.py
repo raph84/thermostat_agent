@@ -363,7 +363,7 @@ def digest(
     result["digest"]["current"] = {
         "Htg SP": 22,
         "Indoor Temp. Setpoint": indoor_setpoint,
-        "Occupancy Flag": bool(x_current_thermostat.iloc[0]['motion']),
+        "Occupancy Flag": bool(x_current_thermostat.iloc[0].get('motion', default=False)),
         "PPD": 99,
         "Coil Power": 0, # TODO use stove exhaust temp
         "MA Temp.": 18,
