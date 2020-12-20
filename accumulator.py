@@ -47,7 +47,7 @@ class Accumulator():
         self.blob.temporary_hold = False
         self.blob.patch()
 
-    def create_and_store():
+    def create_and_store(self):
         entity = Accumulator_Entity()
         entity.dt = ceil_dt(utcnow(), 15)
 
@@ -84,12 +84,12 @@ class Accumulator():
                         b = self.bucket.get_blob(blobs[i].name)
 
 
-                pickle_load = blobs[i].download_as_bytes()
+                pickle_load = b.download_as_bytes()
                 e = pickle.loads(pickle_load)
-                a = Accumulator.A(e, blobs[i])
+                a = Accumulator.A(e, b)
                 self.entities.append(a)
         else:
-            a = create_and_store()
+            a = self.create_and_store()
 
             self.entities = self.entities.append(a)
 
@@ -97,7 +97,7 @@ class Accumulator():
         last_date = self.entities[0].entity.dt
         now = utcnow()
         if last_date.day != now.day:
-            a = create_and_store()
+            a = self.create_and_store()
             self.entities = self.entities.append(a)
 
 
