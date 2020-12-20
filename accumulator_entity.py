@@ -9,8 +9,7 @@ class Accumulator_Entity():
         self.dt = None
 
     def house_keeping(self):
-        if self.temperature != None:
-            self.temperature.dropna(axis=0, how='all', inplace=True)
+        self.temperature.dropna(axis=0, how='all', inplace=True)
 
     def temp_dict(self,
                   temp=None,
