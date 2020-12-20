@@ -34,6 +34,7 @@ class Accumulator():
         return filename
 
     def store_and_release(self):
+        self.entities[0].entity.house_keeping()
         pickle_dump = pickle.dumps(self.entities[0].entity)
         #try:
         #    self.blob.temporary_hold = False
@@ -103,6 +104,11 @@ class Accumulator():
 
 
     def add_temperature(self, d, temp=None, humidity=None, motion=None, stove_exhaust_temp=None, temp_basement=None):
+
+        if temp is None and humidity == None and motion == None and stove_exhaust_temp == None and temp_basement == None:
+            raise ValueError
+
+
         self.load_and_hold()
 
         self.entities[0].entity.add_temperature(d, temp, humidity, motion, stove_exhaust_temp, temp_basement)

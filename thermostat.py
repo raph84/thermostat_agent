@@ -203,7 +203,10 @@ def store_metric_environment():
 
         accumulator = Accumulator()
         n = utcnow()
-        accumulator.add_temperature(n, temp_basement=json_content.get('temperature'))
+        try:
+            accumulator.add_temperature(n, temp_basement=json_content.get('temperature'))
+        except ValueError as ex:
+            app.logger.warn("Accumulator - no value to add - content: {} --- {}".format(payload,ex))
 
     return ('', 204)
 
@@ -445,7 +448,12 @@ def test_accumulate():
 def acc(j):
     accumulator = Accumulator()
     n = utcnow()
-    accumulator.add_temperature(n, temp=j.get('temperature'), humidity=j.get('humidity'), motion=j.get('motion'), stove_exhaust_temp=j.get('stove_exhaust_temp'))
+    try:
+        accumulator.add_temperature(n, temp=j.get('temperature'), humidity=j.get('humidity'), motion=j.get('motion'), stove_exhaust_temp=j.get('stove_exhaust_temp'))
+    except ValueError as ex:
+        app.logger.warn(
+            "Accumulator - no value to add - content: {} --- {}".format(
+                payload, ex))
 
     return accumulator
 
@@ -488,7 +496,7 @@ def get_accumulate_metric_thermostat():
         accumulate = get_accumulate(load)
     else:
         accumulate = get_accumulate()
-        
+
     resp = accumulate.to_dict()
 
     return (resp, 200)
