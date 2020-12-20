@@ -503,7 +503,7 @@ def get_accumulate_metric_thermostat():
     return (resp, 200)
 
 
-def get_accumulate(load=1):
+def get_accumulate(load=2):
     accumulator = Accumulator(app.logger)
     accumulator.load(load,hold=True)
 

@@ -117,7 +117,7 @@ class Accumulator():
         self.load(n=1, hold=True)
 
         part = ceil_dt(d, 15)
-        if self.entities[0].entity.dt <= part:
+        if self.entities[0].entity.dt < part:
             self.logger.info(
                 "Last partition was for {}. Now we need a new one for {}.".
                 format(self.entities[0].entity.dt.isoformat(), part.isoformat()))
