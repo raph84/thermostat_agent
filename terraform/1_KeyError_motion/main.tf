@@ -113,7 +113,7 @@ resource "google_cloud_run_service" "default" {
 
         env {
           name  = "LEVEL"
-          value = "debug"
+          value = "info"
         }
 
         ports {
