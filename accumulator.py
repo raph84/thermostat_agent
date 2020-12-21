@@ -8,6 +8,7 @@ from google.cloud import storage
 import pickle
 import pandas as pd
 import json
+import numpy as np
 
 import warnings
 
@@ -180,7 +181,7 @@ class Accumulator():
         # resp = []
         # for e in self.entities:
         #     resp.append(e.entity.to_dict())
-        df = self.to_df()
+        df = self.to_df().replace({np.nan: None})
         df['dt'] = df.index.values
         df['dt'] = df['dt'].apply(lambda x : x.replace(tzinfo=get_tz()).isoformat())
         return {"accumulation":df.to_dict('records')}
@@ -189,6 +190,7 @@ class Accumulator():
         records_dict = self.to_dict()
         response = ''
         for i in records_dict['accumulation']:
+
             response = response + json.dumps(i) + '\n'
 
         return response
