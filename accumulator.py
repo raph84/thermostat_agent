@@ -133,11 +133,13 @@ class Accumulator():
             self.logger.warn("Blob HOLD failed : {}".format(ex))
 
     def to_dict(self):
-        resp = []
-        for e in self.entities:
-            resp.append(e.entity.to_dict())
-
-        return {"metrics":resp}
+        # resp = []
+        # for e in self.entities:
+        #     resp.append(e.entity.to_dict())
+        df = self.to_df()
+        df['dt'] = df.index.values
+        df['dt'] = df['dt'].apply(lambda x : x.to_pydatetime().isoformat())
+        return {"accumulation":df.to_dict('records')}
 
 
     def to_df(self):
