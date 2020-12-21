@@ -502,13 +502,17 @@ def accumulate_metric_thermostat():
 def get_accumulate_metric_thermostat():
 
     load = int(request.args.get('load', None))
+    records = bool(request.args.get('records', False))
 
     if load>=1:
         accumulate = get_accumulate(load)
     else:
         accumulate = get_accumulate()
 
-    resp = accumulate.to_dict()
+    if records:
+        resp = accumulate.to_json_records()
+    else:
+        resp = accumulate.to_dict()
 
     return (resp, 200)
 
