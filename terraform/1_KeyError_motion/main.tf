@@ -216,6 +216,25 @@ resource "google_service_account" "thermostat-bigquery" {
   account_id = "thermostat-bigquery"
 }
 
+data "google_cloudfunctions_function" "data-accumulation-import" {
+  project = local.project_id
+  region = "us-east4"
+  name = "accumulation_import"
+}
+
+output "accumulation_import" {
+  value = data.google_cloudfunctions_function.data-accumulation-import.name
+}
+
+resource "google_cloudfunctions_function_iam_binding" "accumulation-import" {
+  project  = local.project_id
+  region = "us-east4"
+  cloud_function = data.google_cloudfunctions_function.data-accumulation-import.name
+  role     = "roles/cloudfunctions.invoker"
+  members   = [join(":", ["serviceAccount", google_service_account.thermostat-bigquery.email])]
+}
+
+
 resource "google_cloud_run_service_iam_member" "thermostat-bigquery-id" {
   project  = local.project_id
   service  = "thermostat-agent"
@@ -302,6 +321,31 @@ resource "google_project_iam_member" "jobUser" {
 # EOF
 
 # }
+
+resource "google_cloud_scheduler_job" "bigquery" {
+  name             = "thermostat-bigquery"
+  description      = "Determine next action and push it to thermostat"
+  schedule         = "2 */1 * * *"
+  time_zone        = "Etc/UTC"
+  attempt_deadline = "320s"
+  project = local.project_id
+
+  retry_config {
+    retry_count = 2
+    min_backoff_duration = "60s"
+    max_retry_duration = "40s"
+  }
+
+  http_target {
+    http_method = "GET"
+    uri         = "https://us-central1-thermostat-292016.cloudfunctions.net/accumulation_import"
+
+    oidc_token {
+      service_account_email = google_service_account.thermostat-bigquery.email
+      audience = "https://us-central1-thermostat-292016.cloudfunctions.net/accumulation_import"
+    }
+  }
+}
 
 resource "google_cloud_scheduler_job" "job" {
   name             = "thermostat-next-action"
