@@ -116,7 +116,7 @@ class Accumulator():
         value_present = False
         for k in list(value_dict.keys()):
             if value_dict.get(k) is not None:
-                if not isinstance(value_dict.get(k), (int, float)):
+                if not isinstance(value_dict.get(k), (int, float)) or k == 'timestamp':
                     self.logger.warn(
                         "Accumulator only accepts int, float or boolean - {} : {}"
                         .format(k, value_dict.get(k)))
@@ -183,7 +183,9 @@ class Accumulator():
         #     resp.append(e.entity.to_dict())
         df = self.to_df().replace({np.nan: None})
         df['dt'] = df.index.values
-        df['dt'] = df['dt'].apply(lambda x : x.replace(tzinfo=get_tz()).isoformat())
+        df['dt'] = df['dt'].apply(lambda x: x.replace(tzinfo=get_tz()).isoformat())
+        if 'timestamp' in df:
+            del df['timestamp']
         return {"accumulation":df.to_dict('records')}
 
     def to_json_records(self):
