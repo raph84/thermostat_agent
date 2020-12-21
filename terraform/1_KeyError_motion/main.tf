@@ -216,6 +216,14 @@ resource "google_service_account" "thermostat-bigquery" {
   account_id = "thermostat-bigquery"
 }
 
+resource "google_cloud_run_service_iam_member" "thermostat-bigquery-id" {
+  project  = local.project_id
+  service  = "thermostat-agent"
+  role     = "roles/run.invoker"
+  location = "us-east4"
+  member   = join(":", ["serviceAccount", google_service_account.thermostat-bigquery.email])
+}
+
 resource "google_bigquery_dataset" "dataset-thermostat" {
   dataset_id                  = "thermostat"
   friendly_name               = "thermostat"

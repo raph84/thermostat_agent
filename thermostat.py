@@ -491,9 +491,9 @@ def accumulate_metric_thermostat():
         j = json.loads(payload)
 
         acc(json.loads(payload))
-    except:
-        app.logger.error("Unable to loads payload Json : {}".format(
-            payload))
+    except Exception as ex:
+        app.logger.error("Unable to loads payload Json {} : {}".format(
+            ex,payload))
 
     return ('', 204)
 

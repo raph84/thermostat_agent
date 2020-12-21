@@ -113,7 +113,7 @@ class Accumulator():
 
     def add_temperature2(self, d, value_dict={}):
         value_present = False
-        for k in value_dict.keys():
+        for k in list(value_dict.keys()):
             if value_dict.get(k) is not None:
                 if not isinstance(value_dict.get(k), (int, float)):
                     self.logger.warn(
