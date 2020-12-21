@@ -240,7 +240,7 @@ def resample_disturbances(data):
     df = pd.DataFrame(data, index=ind)
     df = df.resample('15Min').interpolate(method='linear')
     df['dt'] = df.index.values
-    data2 = df.to_dict('records')
+    data2 = df.replace({np.nan: None}).to_dict('records')
     for d in data2:
         d['dt'] = d['dt'].to_pydatetime().strftime(FORMAT_DATE_SEP)
     #data2['dt'] = data2['dt'].to_pydatetime().strftime("%Y-%m-%d %H:%M:%S")
