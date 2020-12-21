@@ -2,11 +2,13 @@ from datetime import datetime
 from pytz import timezone
 import pytz
 import iso8601
-from utils import utcnow, ceil_dt
+from utils import utcnow, ceil_dt, get_tz
 from accumulator_entity import Accumulator_Entity
 from google.cloud import storage
 import pickle
 import pandas as pd
+
+import warnings
 
 
 
@@ -108,8 +110,49 @@ class Accumulator():
             self.entities = self.entities.append(a)
 
 
+    def add_temperature2(self, d, value_dict={}):
+        value_present = False
+        for k in value_dict.keys():
+            if value_dict.get(k) is not None:
+                if not isinstance(value_dict.get(k), (int, float)):
+                    self.logger.warn(
+                        "Accumulator only accepts int, float or boolean - {} : {}"
+                        .format(k, value_dict.get(k)))
+                    del value_dict[k]
+                else:
+                    value_present = True
+
+        if not value_present:
+            raise ValueError
+
+        self.load(n=1, hold=True)
+
+        part = ceil_dt(d, 15)
+        if self.entities[0].entity.dt < part:
+            self.logger.info(
+                "Last partition was for {}. Now we need a new one for {}.".
+                format(self.entities[0].entity.dt.isoformat(),
+                       part.isoformat()))
+
+            self.entities = [self.create_and_store()]
+
+        self.entities[0].entity.add_temperature2(d, value_dict=value_dict)
+        self.store_and_release()
+        try:
+            self.entities[0].blob.temporary_hold = True
+            self.entities[0].blob.patch()
+        except Exception as ex:
+            self.logger.warn("Blob HOLD failed : {}".format(ex))
+
 
     def add_temperature(self, d, temp=None, humidity=None, motion=None, stove_exhaust_temp=None, temp_basement=None):
+        """ Deprecated
+            Please use add_temperature(self, d, value_dict={}):
+        """
+        warnings.warn(
+            "add_temperature(self, d, temp=None, humidity=None, motion=None, stove_exhaust_temp=None, temp_basement=None) is deprecated",
+            DeprecationWarning,
+            stacklevel=2)
 
         if temp is None and humidity == None and motion == None and stove_exhaust_temp == None and temp_basement == None:
             raise ValueError
@@ -138,7 +181,7 @@ class Accumulator():
         #     resp.append(e.entity.to_dict())
         df = self.to_df()
         df['dt'] = df.index.values
-        df['dt'] = df['dt'].apply(lambda x : x.to_pydatetime().isoformat())
+        df['dt'] = df['dt'].apply(lambda x : x.to_pydatetime().replace(tzinfo=get_tz()).isoformat())
         return {"accumulation":df.to_dict('records')}
 
 

@@ -450,20 +450,17 @@ def test_accumulate():
 def acc(j):
     accumulator = Accumulator(app.logger)
     n = utcnow()
-    temp = j.get('temperature')
-    humidity = j.get('humidity')
-    stove_exhaust_temp = j.get('stove_exhaust_temp')
 
-    if temp is not None:
-        temp = float(j.get('temperature'))
-    if humidity is not None:
-        humidity = float(j.get('humidity'))
-    if stove_exhaust_temp is not None:
-        stove_exhaust_temp = float(j.get('stove_exhaust_temp'))
+    if j.get('temperature') is not None:
+        j['temperature'] = float(j.get('temperature'))
+    if j.get('humidity') is not None:
+        j['humidity'] = float(j.get('humidity'))
+    if j.get('stove_exhaust_temp') is not None:
+        j['stove_exhaust_temp'] = float(j.get('stove_exhaust_temp'))
 
 
     try:
-        accumulator.add_temperature(n, temp=temp, humidity=humidity, motion=j.get('motion'), stove_exhaust_temp=stove_exhaust_temp)
+        accumulator.add_temperature2(n, value_dict=j)
     except ValueError as ex:
         app.logger.warn(
             "Accumulator - no value to add - content: {} --- {}".format(

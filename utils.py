@@ -6,7 +6,6 @@ import pandas as pd
 
 tz = timezone('America/Montreal')
 
-
 def ceil_dt(dt, delta):
     ceil = datetime.min + math.ceil(
         (dt.replace(tzinfo=None) - datetime.min) /
@@ -17,3 +16,6 @@ def ceil_dt(dt, delta):
 
 def utcnow():
     return datetime.now(tz=timezone('America/Montreal'))
+
+def get_tz():
+    return tz

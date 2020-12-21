@@ -1,6 +1,9 @@
 import pandas as pd
 from utils import utcnow, ceil_dt
 
+import warnings
+
+
 
 class Accumulator_Entity():
 
@@ -27,7 +30,20 @@ class Accumulator_Entity():
 
         return t
 
+    def add_temperature2(self, d, value_dict={}):
+        df_t = pd.DataFrame(value_dict, index=[d])
+        if self.temperature is not None:
+            self.temperature = self.temperature.append(df_t)
+        else:
+            self.dt = ceil_dt(d, 15)
+            self.temperature = df_t
+
+
     def add_temperature(self, d, temp=None, humidity=None, motion=None, stove_exhaust_temp=None, temp_basement=None):
+        warnings.warn(
+            "add_temperature(self, d, temp=None, humidity=None, motion=None, stove_exhaust_temp=None, temp_basement=None) is deprecated",
+            DeprecationWarning,
+            stacklevel=2)
 
         t = self.temp_dict(temp,
                            humidity,
