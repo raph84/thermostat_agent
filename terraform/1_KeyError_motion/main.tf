@@ -74,7 +74,7 @@ provider "docker" {
     username = "oauth2accesstoken"
     password = data.google_client_config.default.access_token
   }
-  #host = "npipe:////.//pipe//docker_engine"
+  host = "npipe:////.//pipe//docker_engine"
 }
 
 data "docker_registry_image" "thermostat-agent" {
@@ -240,13 +240,10 @@ resource "google_bigquery_dataset_iam_binding" "dataEditor" {
   ]
 }
 
-resource "google_bigquery_dataset_iam_binding" "jobUser" {
-  dataset_id = google_bigquery_dataset.dataset-thermostat.dataset_id
-  role       = "roles/bigquery.jobUser"
-
-  members = [
-    join(":", ["serviceAccount", google_service_account.thermostat-bigquery.email]),
-  ]
+resource "google_project_iam_member" "jobUser" {
+  project = local.project_id
+  role    = "roles/bigquery.jobUser"
+  member  = join(":", ["serviceAccount", google_service_account.thermostat-bigquery.email])
 }
 
 # resource "google_bigquery_table" "thermostat_metric" {
