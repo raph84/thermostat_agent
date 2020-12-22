@@ -67,6 +67,9 @@ class Accumulator_Entity():
     def add_temperature2(self, d, value_dict={}):
         df_t = pd.DataFrame(value_dict, index=[d])
         df_t = df_t.applymap(lambda x: np.nan if x is None else x)
+        if "occupancy_flag" in self.temperature:
+            self.temperature["occupancy_flag"].apply(lambda x: 0 if x.isnan() else x)
+
         if self.temperature is not None:
             self.temperature = self.temperature.append(df_t)
         else:

@@ -100,6 +100,7 @@ class Accumulator():
 
                 pickle_load = b.download_as_bytes()
                 e = pickle.loads(pickle_load)
+
                 a = Accumulator.A(e, b)
                 self.entities.append(a)
         else:
@@ -223,6 +224,7 @@ class Accumulator():
 
         del df['motion']
         df = df.resample('15Min').mean().interpolate('linear')
-        df = df.merge(m,left_index=True, right_index=True)
+        df = df.merge(m, left_index=True, right_index=True)
+        df['occupancy_flag'] = df['motion']
 
         return df
