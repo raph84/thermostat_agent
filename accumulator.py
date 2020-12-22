@@ -204,6 +204,9 @@ class Accumulator():
         df = pd.DataFrame()
         for e in self.entities:
             df = df.append(e.entity.temperature)
+
+        df = df.applymap(lambda x: np.nan if x is None else x)
+
         m = df['motion']
         m = m.apply(lambda x: 1 if x else 0)
         m = m.resample('3min').sum()

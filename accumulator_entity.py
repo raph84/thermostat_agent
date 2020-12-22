@@ -66,6 +66,7 @@ class Accumulator_Entity():
 
     def add_temperature2(self, d, value_dict={}):
         df_t = pd.DataFrame(value_dict, index=[d])
+        df_t = df_t.applymap(lambda x: np.nan if x is None else x)
         if self.temperature is not None:
             self.temperature = self.temperature.append(df_t)
         else:
@@ -94,6 +95,9 @@ class Accumulator_Entity():
 
     def to_dict(self):
         resp_df = self.temperature
+
+        #TODO Remove after 2020-12-22
+        resp_df = resp_df.applymap(lambda x: np.nan if x is None else x)
         resp_df['dt'] = pd.to_datetime(resp_df.index)
         resp_df['dt'] = resp_df['dt'].apply(lambda x: x.isoformat())
         resp_df.sort_index(inplace=True)
