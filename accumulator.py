@@ -2,7 +2,7 @@ from datetime import datetime
 from pytz import timezone
 import pytz
 import iso8601
-from utils import utcnow, ceil_dt, get_tz
+from utils import utcnow, ceil_dt, get_tz, get_utc_tz
 from accumulator_entity import Accumulator_Entity
 from google.cloud import storage
 import pickle
@@ -189,7 +189,8 @@ class Accumulator():
         #     resp.append(e.entity.to_dict())
         df = self.to_df().replace({np.nan: None})
         df['dt'] = df.index.values
-        df['dt'] = df['dt'].apply(lambda x: x.replace(tzinfo=get_tz()).isoformat())
+        df['dt'] = df['dt'].apply(lambda x: x.replace(tzinfo=get_utc_tz()).
+                                  astimezone(get_tz()).isoformat())
         if 'timestamp' in df:
             del df['timestamp']
         return {"accumulation":df.to_dict('records')}
