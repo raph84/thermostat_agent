@@ -325,7 +325,7 @@ resource "google_project_iam_member" "jobUser" {
 resource "google_cloud_scheduler_job" "bigquery" {
   name             = "thermostat-bigquery"
   description      = "Determine next action and push it to thermostat"
-  schedule         = "2 */1 * * *"
+  schedule         = "2 * * * *"
   time_zone        = "Etc/UTC"
   attempt_deadline = "320s"
   project = local.project_id
