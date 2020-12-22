@@ -225,6 +225,6 @@ class Accumulator():
         del df['motion']
         df = df.resample('15Min').mean().interpolate('linear')
         df = df.merge(m, left_index=True, right_index=True)
-        df['occupancy_flag'] = df['motion']
+        df['current_occupancy_flag'] = df['motion']
 
         return df
