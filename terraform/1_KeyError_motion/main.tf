@@ -338,11 +338,11 @@ resource "google_cloud_scheduler_job" "bigquery" {
 
   http_target {
     http_method = "GET"
-    uri         = "https://us-central1-thermostat-292016.cloudfunctions.net/accumulation_import"
+    uri         = "https://us-east4-thermostat-292016.cloudfunctions.net/accumulation_import"
 
     oidc_token {
       service_account_email = google_service_account.thermostat-bigquery.email
-      audience = "https://us-central1-thermostat-292016.cloudfunctions.net/accumulation_import"
+      audience = "https://us-east4-thermostat-292016.cloudfunctions.net/accumulation_import"
     }
   }
 }
