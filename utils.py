@@ -5,6 +5,8 @@ import pytz
 import pandas as pd
 
 tz = timezone('America/Montreal')
+tz_utc = timezone('UTC')
+
 
 def ceil_dt(dt, delta):
     ceil = datetime.min + math.ceil(
@@ -19,3 +21,7 @@ def utcnow():
 
 def get_tz():
     return tz
+
+
+def get_utc_tz():
+    return tz_utc

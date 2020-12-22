@@ -27,10 +27,11 @@ from pytz import timezone
 import pytz
 import iso8601
 import re
+import numpy as np
 
 from accumulator import Accumulator
 
-from utils import utcnow, ceil_dt
+from utils import utcnow, ceil_dt, get_tz, get_utc_tz
 
 
 
@@ -428,9 +429,35 @@ def next_action():
 
 
     body = digest(hourly_start, hourly_end, realtime_start, realtime_end)
-
     url_query = url_gnu_rl + '/mpc/'
     resp = query(url_query, url_gnu_rl, 'POST', body)
+
+
+    accumulator = Accumulator(app.logger)
+    mpc_dict = resp.json().copy()
+    for k in list(mpc_dict.keys()):
+        mpc_dict['mpc' + k] = mpc_dict.pop(k)
+
+    current_dict = body['current'].copy()
+    current_dict['dt'] = datetime.strptime(current_dict['dt'], FORMAT_DATE_SEP)
+    current_dict['dt'] = get_tz().localize(current_dict['dt'])
+    n = current_dict['dt']
+    current_dict['dt'] = current_dict['dt'].astimezone(get_utc_tz())
+    current_dict['dt'] = current_dict['dt'].timestamp()
+    for k in list(current_dict.keys()):
+        current_dict['current' + k.replace(" ", "_")
+                                  .replace(".", "")
+                                  .lower()] = current_dict.pop(k)
+
+    try:
+        accumulator.add_temperature2(n, value_dict=current_dict)
+        accumulator.add_temperature2(n, value_dict=mpc_dict)
+
+    except ValueError as ex:
+        app.logger.warn(
+            "Accumulator - no value to add - content: {} --- {}".format(
+                mpc_dict, ex))
+
     app.logger.info("Next Action Result : {}".format(resp.json()))
     app.logger.info("NextAction_Setpoint:{}".format(
         resp.json()['sat_stpt']))
