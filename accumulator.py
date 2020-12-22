@@ -119,6 +119,8 @@ class Accumulator():
         value_present = False
         for k in list(value_dict.keys()):
             if value_dict.get(k) is not None:
+                if isinstance(value_dict.get(k), (bool)):
+                    value_dict[k] = int(value_dict.get(k))
                 if not isinstance(value_dict.get(k), (int, float)) or k == 'timestamp':
                     self.logger.warn(
                         "Accumulator only accepts int, float or boolean - {} : {}"
