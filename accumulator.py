@@ -52,14 +52,17 @@ class Accumulator():
         filename = self.PREFIX + filename
         return filename
 
-    def store_and_release(self):
+    def store_and_release(self,single=True):
 
-        self.entities[0].entity.house_keeping()
-        pickle_dump = pickle.dumps(self.entities[0].entity)
+        for e in self.entities:
+            e.entity.house_keeping()
+            pickle_dump = pickle.dumps(e.entity)
 
-        self.entities[0].blob = self.bucket.get_blob(self.entities[0].blob.name)
-        self.entities[0].blob.upload_from_string(data=pickle_dump)
-        self.entities[0].release()
+            e.blob = self.bucket.get_blob(e.blob.name)
+            e.blob.upload_from_string(data=pickle_dump)
+            e.release()
+            if single:
+                break
 
     def create_and_store(self):
         entity = Accumulator_Entity()

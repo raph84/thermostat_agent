@@ -12,7 +12,34 @@ class Accumulator_Entity():
         self.dt = None
 
     def house_keeping(self):
-        self.temperature.dropna(axis=0, how='all', inplace=True)
+        if self.temperature is not None:
+            self.temperature.dropna(axis=0, how='all', inplace=True)
+
+            # TODO temporary data cleanup. Remove after 2020-12-22
+            # if 'currentcoil_power' in self.temperature:
+            #     for k in list(self.temperature.keys()):
+            #         self.temperature[k.replace(
+            #             "current", "current_")] = self.temperature.pop(k)
+
+            # # TODO temporary data cleanup. Remove after 2020-12-22
+            # if 'currentCoil Power' in self.temperature:
+            #     for k in list(self.temperature.keys()):
+            #         self.temperature[k.lower().replace(
+            #             "current", "current_")
+            #             .replace(" ", "_")] = self.temperature.pop(k)
+
+            # # TODO temporary data cleanup. Remove after 2020-12-22
+            # if 'current_direct_solar_rad.' in self.temperature:
+            #     for k in list(self.temperature.keys()):
+            #         self.temperature[k.replace(
+            #             ".",
+            #             "")] = self.temperature.pop(k)
+
+            # # TODO temporary data cleanup. Remove after 2020-12-22
+            # if 'mpcindoor_temp_setpoint' in self.temperature:
+            #     for k in list(self.temperature.keys()):
+            #         self.temperature[k.replace(
+            #                 "mpc", "mpc_")] = self.temperature.pop(k)
 
     def temp_dict(self,
                   temp=None,
@@ -20,6 +47,13 @@ class Accumulator_Entity():
                   motion=None,
                   stove_exhaust_temp=None,
                   temp_basement=None):
+
+        warnings.warn(
+            "add_temperature(self, d, temp=None, humidity=None, motion=None, stove_exhaust_temp=None, temp_basement=None) is deprecated",
+            DeprecationWarning,
+            stacklevel=2)
+
+
         t = {
             "temperature": temp,
             "humidity": humidity,

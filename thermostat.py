@@ -434,6 +434,7 @@ def next_action():
 
 
     accumulator = Accumulator(app.logger)
+    
     mpc_dict = resp.json().copy()
     for k in list(mpc_dict.keys()):
         mpc_dict['mpc_' + k] = mpc_dict.pop(k)
@@ -444,6 +445,7 @@ def next_action():
     n = current_dict['dt']
     current_dict['dt'] = current_dict['dt'].astimezone(get_utc_tz())
     current_dict['dt'] = current_dict['dt'].timestamp()
+
     for k in list(current_dict.keys()):
         current_dict['current_' + k.replace(" ", "_")
                                   .replace(".", "")
