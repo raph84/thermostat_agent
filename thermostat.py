@@ -436,7 +436,7 @@ def next_action():
     accumulator = Accumulator(app.logger)
     mpc_dict = resp.json().copy()
     for k in list(mpc_dict.keys()):
-        mpc_dict['mpc' + k] = mpc_dict.pop(k)
+        mpc_dict['mpc_' + k] = mpc_dict.pop(k)
 
     current_dict = body['current'].copy()
     current_dict['dt'] = datetime.strptime(current_dict['dt'], FORMAT_DATE_SEP)
@@ -445,7 +445,7 @@ def next_action():
     current_dict['dt'] = current_dict['dt'].astimezone(get_utc_tz())
     current_dict['dt'] = current_dict['dt'].timestamp()
     for k in list(current_dict.keys()):
-        current_dict['current' + k.replace(" ", "_")
+        current_dict['current_' + k.replace(" ", "_")
                                   .replace(".", "")
                                   .lower()] = current_dict.pop(k)
 
