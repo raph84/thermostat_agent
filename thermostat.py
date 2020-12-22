@@ -340,6 +340,18 @@ def digest():
                     realtime_start,
                     realtime_end)
 
+def coil_power(stove_exhaust_temp):
+    max_coil_power = 10613.943465
+    min_coil_power = 0.0
+    max_stove_exhaust_temp = 130.0
+
+    if stove_exhaust_temp > 30:
+        coil_power = (stove_exhaust_temp * max_coil_power) / max_stove_exhaust_temp
+    else:
+        coil_power = 0
+
+    return coil_power
+
 
 def digest(
 
@@ -367,9 +379,9 @@ def digest(
         "Indoor Temp. Setpoint": indoor_setpoint,
         "Occupancy Flag": bool(x_current_thermostat.iloc[0].get('motion', default=False)),
         "PPD": 99,
-        "Coil Power": 0, # TODO use stove exhaust temp
+        "Coil Power": coil_power(x_current_thermostat.iloc[0]['stove_exhaust_temp']),
         "MA Temp.": 18,
-        "Sys Out Temp.": x_current_thermostat.iloc[0].get('temp_basement') or x_current_thermostat.iloc[0]['temperature'],
+        "Sys Out Temp.": x_current_thermostat.iloc[0].get('temp_basement'),
         "dt": format_date(date_t),
         "Outdoor Temp.": current_realtime['temp']['value'],
         "Outdoor RH": current_realtime['humidity']['value'],
@@ -434,7 +446,7 @@ def next_action():
 
 
     accumulator = Accumulator(app.logger)
-    
+
     mpc_dict = resp.json().copy()
     for k in list(mpc_dict.keys()):
         mpc_dict['mpc_' + k] = mpc_dict.pop(k)
