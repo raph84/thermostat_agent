@@ -209,7 +209,7 @@ class Accumulator():
 
         df = df.applymap(lambda x: np.nan if x is None else x)
 
-        m = df['motion']
+        m = df['motion'].copy(deep=True)
         m = m.apply(lambda x: 1 if x else 0)
         m = m.resample('3min').sum()
         m = (m - m.mean()) / (m.max() - m.min())
@@ -221,6 +221,7 @@ class Accumulator():
         temp = (m.max() - m.min()) / 2
         m = m.apply(lambda x: True if x >= temp else False)
 
+        del df['motion']
         df = df.resample('15Min').mean().interpolate('linear')
         df = df.merge(m,left_index=True, right_index=True)
 
