@@ -4,7 +4,7 @@ from pytz import timezone
 import pytz
 import pandas as pd
 
-tz = timezone('America/Montreal')
+tz = timezone('America/Toronto')
 tz_utc = timezone('UTC')
 
 
@@ -25,3 +25,14 @@ def get_tz():
 
 def get_utc_tz():
     return tz_utc
+
+def utc_to_toronto(dt):
+    if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+        dt = tz_utc.localize(dt).astimezone(tz)
+    else:
+        dt = dt.astimezone(tz)
+
+    return dt
+
+    
+
