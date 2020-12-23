@@ -166,7 +166,7 @@ resource "google_cloud_run_service_iam_member" "iam-api-call" {
   location = "us-east4"
   member   = join(":", ["serviceAccount", google_service_account.api-call.email])
 }
-resource "google_cloud_run_service_iam_member" "iam-api-call" {
+resource "google_cloud_run_service_iam_member" "api-call-climacell" {
   project  = local.project_id
   service  = "climacell-agent"
   role     = "roles/run.invoker"
