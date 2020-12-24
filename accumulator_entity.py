@@ -19,7 +19,7 @@ def check_index(df):
 
 class Accumulator_Entity():
 
-    def __init__(self, logger):
+    def __init__(self):
         self.temperature = None
         self.dt = None
 
