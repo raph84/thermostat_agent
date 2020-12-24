@@ -7,11 +7,12 @@ import warnings
 
 
 def check_index(df):
-    if 'datetime64[ns, America/Toronto]' not in str(df.index.dtype):
-        df = df.reset_index()
-        df['index'] = df['index'].apply(
-            lambda x: get_tz().localize(x.replace(tzinfo=None)))
-        df = df.set_index(['index'])
+    if df is not None:
+        if 'datetime64[ns, America/Toronto]' not in str(df.index.dtype):
+            df = df.reset_index()
+            df['index'] = df['index'].apply(
+                lambda x: get_tz().localize(x.replace(tzinfo=None)))
+            df = df.set_index(['index'])
 
     return df
 
