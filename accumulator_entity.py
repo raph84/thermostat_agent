@@ -1,5 +1,6 @@
 import pandas as pd
 from utils import utcnow, ceil_dt
+from yadt import scan_and_apply_tz
 
 import warnings
 
@@ -65,6 +66,7 @@ class Accumulator_Entity():
         return t
 
     def add_temperature2(self, d, value_dict={}):
+        value_dict = scan_and_apply_tz(value_dict)
         df_t = pd.DataFrame(value_dict, index=[d])
         df_t = df_t.applymap(lambda x: np.nan if x is None else x)
         if "occupancy_flag" in self.temperature:

@@ -32,6 +32,7 @@ import numpy as np
 from accumulator import Accumulator
 
 from utils import utcnow, ceil_dt, get_tz, get_utc_tz
+from yadt import scan_and_apply_tz, utc_to_toronto, apply_tz_toronto, parse_date
 
 
 
@@ -114,11 +115,13 @@ def get_metric_from_bucket(last=0, pref='thermostat', last_file=None, first_file
         try:
             json_str = blobs[i].download_as_string()
             j = json.loads(json_str)
-            j["file"] = blobs[i].name
+            j = scan_and_apply_tz(j)
 
-            j['datetime'] = datetime.fromtimestamp(
-                j['timestamp']).strftime(FORMAT_DATE_SEP)
-            j['dateobj'] = datetime.fromtimestamp(j['timestamp'])
+            j["file"] = blobs[i].name
+            j['datetime'] = scan_and_apply_tz(datetime.fromtimestamp(
+                                                     j['timestamp']))
+            j['dateobj'] = apply_tz_toronto(datetime.fromtimestamp(j['timestamp']))
+
             last_json.append(j)
         except NameError:
             print("Payload is not JSON.")
@@ -310,10 +313,10 @@ def round_date(date):
     return date
 
 def map_climacell_data(data):
-    date = datetime.strptime(data['observation_time']['value'],
-                             '%Y-%m-%dT%H:%M:%S.%f%z')
+    date = parse_date(data['observation_time']['value'],toronto=True)
     date = round_date(date)
     return {
+        # TODO : Dt should be NOW
         "dt": date.strftime(FORMAT_DATE_SEP),
         "Indoor Temp. Setpoint": get_set_point(date),
         "Outdoor Temp.": data['temp']['value'],
@@ -411,11 +414,9 @@ def digest(
             disturbances.append(copy.deepcopy(mapping))
 
     for h in hourly:
-        date_h = datetime.strptime(h['observation_time']['value'],
-                                   '%Y-%m-%dT%H:%M:%S.%f%z')
-        date_h = date_h.replace(tzinfo=None)
-        date_temp = datetime.strptime(result["digest"]["date"],
-                                   FORMAT_DATE_SEP)
+        date_h = parse_date(h['observation_time']['value'])
+        #date_h = date_h.replace(tzinfo=None)
+        date_temp = parse_date(result["digest"]["date"], toronto=True)
         diff = ((date_h - date_temp).total_seconds() // 3600)
         if diff < 4 and diff >= 0:
             mapping = map_climacell_data(h)
@@ -452,11 +453,12 @@ def next_action():
         mpc_dict['mpc_' + k] = mpc_dict.pop(k)
 
     current_dict = body['current'].copy()
-    current_dict['dt'] = datetime.strptime(current_dict['dt'], FORMAT_DATE_SEP)
-    current_dict['dt'] = get_tz().localize(current_dict['dt'])
+    current_dict['dt'] = parse_date(current_dict['dt'], toronto=True)
     n = current_dict['dt']
     current_dict['dt'] = current_dict['dt'].astimezone(get_utc_tz())
     current_dict['dt'] = current_dict['dt'].timestamp()
+    current_dict['dt_utc'] = current_dict['dt']
+    del current_dict['dt']
 
     for k in list(current_dict.keys()):
         current_dict['current_' + k.replace(" ", "_")

@@ -12,6 +12,8 @@ import numpy as np
 
 import warnings
 
+from yadt import scan_and_apply_tz, utc_to_toronto
+
 
 
 class Accumulator():
@@ -189,8 +191,7 @@ class Accumulator():
         #     resp.append(e.entity.to_dict())
         df = self.to_df().replace({np.nan: None})
         df['dt'] = df.index.values
-        df['dt'] = df['dt'].apply(lambda x: x.replace(tzinfo=get_utc_tz()).
-                                  astimezone(get_tz()).isoformat())
+        df['dt'] = df['dt'].apply(lambda x: utc_to_toronto(x).isoformat())
         if 'timestamp' in df:
             del df['timestamp']
         return {"accumulation":df.to_dict('records')}
@@ -208,7 +209,7 @@ class Accumulator():
         df = pd.DataFrame()
         for e in self.entities:
             df = df.append(e.entity.temperature)
-
+        df.sort_index(inplace=True)
         df = df.applymap(lambda x: np.nan if x is None else x)
 
         if 'motion' in df:
