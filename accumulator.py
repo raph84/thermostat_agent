@@ -3,7 +3,7 @@ from pytz import timezone
 import pytz
 import iso8601
 from utils import utcnow, ceil_dt, get_tz, get_utc_tz
-from accumulator_entity import Accumulator_Entity
+from accumulator_entity import Accumulator_Entity, check_index
 from google.cloud import storage
 import pickle
 import pandas as pd
@@ -102,6 +102,7 @@ class Accumulator():
 
                 pickle_load = b.download_as_bytes()
                 e = pickle.loads(pickle_load)
+                e.house_keeping()
 
                 a = Accumulator.A(e, b)
                 self.entities.append(a)
@@ -208,6 +209,7 @@ class Accumulator():
     def to_df(self):
         df = pd.DataFrame()
         for e in self.entities:
+            e.entity.temperature = check_index(e.entity.temperature)
             df = df.append(e.entity.temperature)
         df.sort_index(inplace=True)
         df = df.applymap(lambda x: np.nan if x is None else x)
