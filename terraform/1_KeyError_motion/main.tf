@@ -5,8 +5,8 @@
 #
 
 locals {
-  # Ids for multiple sets of EC2 instances, merged together
   project_id = "thermostat-292016"
+  project_iot = "raph-iot"
 }
 
 
@@ -179,6 +179,12 @@ resource "google_cloud_run_service_iam_member" "api-call-climacell" {
 resource "google_project_iam_member" "cloud-debuger" {
   project = local.project_id
   role    = "roles/clouddebugger.agent"
+  member  = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
+}
+
+resource "google_project_iam_member" "thermostat-agent-iot-controller" {
+  project = local.project_iot
+  role    = "roles/cloudiot.deviceController"
   member  = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
 }
 
