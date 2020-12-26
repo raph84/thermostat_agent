@@ -34,6 +34,8 @@ from accumulator import Accumulator
 from utils import utcnow, ceil_dt, get_tz, get_utc_tz
 from yadt import scan_and_apply_tz, utc_to_toronto, apply_tz_toronto, parse_date
 
+from thermostat_iot_control import thermostat_iot_control
+from thermostat_decision import heating_decision
 
 
 # Instantiates a client
@@ -52,6 +54,7 @@ FORMAT_DATE_DASH = "%Y%m%d-%H%M%S"
 
 app = Flask(__name__)
 app.config["DEBUG"] = True
+app.register_blueprint(thermostat_iot_control, url_prefix="/iot")
 
 if __name__ != '__main__':
     gunicorn_logger = logging.getLogger('gunicorn.error')
@@ -474,10 +477,19 @@ def next_action():
             "Accumulator - no value to add - content: {} --- {}".format(
                 mpc_dict, ex))
 
+       
+
     app.logger.info("Next Action Result : {}".format(resp.json()))
     app.logger.info("NextAction_Setpoint:{}".format(
         resp.json()['sat_stpt']))
-    return resp.json()
+
+    next_action_result = {
+        "mpc": resp.json(),
+        "heating_decision": heating_decision(resp.json())
+    }  
+
+
+    return next_action_result
 
 
 @app.route('/accumulate/', methods=['POST'])

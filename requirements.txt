@@ -9,3 +9,5 @@ pandas
 pytz
 iso8601
 python-dateutil
+
+google-cloud-iot==2.0.1
