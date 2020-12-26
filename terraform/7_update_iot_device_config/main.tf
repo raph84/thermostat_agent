@@ -182,11 +182,11 @@ resource "google_project_iam_member" "cloud-debuger" {
   member  = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
 }
 
-resource "google_project_iam_member" "thermostat-agent-iot-controller" {
-  project = local.project_iot
-  role    = "roles/cloudiot.deviceController"
-  member  = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
-}
+# resource "google_project_iam_member" "thermostat-agent-iot-controller" {
+#   project = local.project_iot
+#   role    = "roles/cloudiot.deviceController"
+#   member  = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
+# }
 
 resource "google_storage_bucket" "thermostat_metric_data" {
   labels = {
