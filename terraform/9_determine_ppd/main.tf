@@ -118,7 +118,7 @@ resource "google_cloud_run_service" "default" {
 
         env {
           name  = "ACTION_THRESHOLD"
-          value = "1.0"
+          value = "1.2"
         }
 
         ports {
@@ -128,7 +128,7 @@ resource "google_cloud_run_service" "default" {
         resources {
           limits = {
             "cpu"    = "1000m"
-            "memory" = "256Mi"
+            "memory" = "512Mi"
           }
           requests = {}
         }
