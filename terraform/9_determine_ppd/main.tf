@@ -186,10 +186,12 @@ resource "google_project_iam_member" "cloud-debuger" {
   role    = "roles/clouddebugger.agent"
   member  = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
 }
-resource "google_project_iam_member" "cloud-logger" {
+resource "google_project_iam_binding" "cloud-logger" {
   project = local.project_id
   role    = "roles/logging.logWriter"
-  member  = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
+  members = [
+    join(":", ["serviceAccount", google_service_account.thermostat-agent.email]),
+  ]
 }
 
 # resource "google_project_iam_member" "thermostat-agent-iot-controller" {
