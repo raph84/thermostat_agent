@@ -1,5 +1,6 @@
 from thermostat_iot_control import update_config
 from flask import current_app
+import os
 
 ACTION_THRESHOLD = float(os.environ.get('ACTION_THRESHOLD',0.75))
 
