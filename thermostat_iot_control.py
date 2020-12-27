@@ -73,7 +73,7 @@ def update_config(config_dict,device_id):
     for k in config_dict.keys():
         if config_dict[k] is not None:
             if config[k]:
-                if config[k] != config_dict[k]
+                if config[k] != config_dict[k]:
                     config[k] = config_dict[k]
                     update_needed = True
                 else:
