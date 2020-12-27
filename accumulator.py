@@ -125,7 +125,7 @@ class Accumulator():
                 if isinstance(value_dict.get(k), (bool)):
                     value_dict[k] = int(value_dict.get(k))
                 if not isinstance(value_dict.get(k), (int, float)) or k == 'timestamp':
-                    logging.warn(
+                    logging.warning(
                         "Accumulator only accepts int, float or boolean - {} : {}"
                         .format(k, value_dict.get(k)))
                     del value_dict[k]
