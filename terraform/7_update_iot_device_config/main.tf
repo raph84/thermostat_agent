@@ -116,6 +116,11 @@ resource "google_cloud_run_service" "default" {
           value = "info"
         }
 
+        env {
+          name  = "ACTION_THRESHOLD"
+          value = "1.0"
+        }
+
         ports {
           container_port = 8080
         }

@@ -20,6 +20,9 @@ def heating_decision(next_action):
     config_dict = {}
     action = float(next_action['action'])
 
+    current_app.logger.info("Next action : {} ; Threshold : {}".format(
+        next_action['action'], ACTION_THRESHOLD))
+
     if float(next_action['action']) > ACTION_THRESHOLD:
 
         config_dict['heating_state'] = True
