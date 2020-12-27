@@ -19,6 +19,8 @@ from google.cloud import storage
 from google.oauth2 import id_token
 import google.auth
 from google.auth.transport.requests import Request
+import google.cloud.logging
+from google.cloud.logging.handlers import CloudLoggingHandler, setup_logging
 import base64
 import copy
 import requests
@@ -63,8 +65,13 @@ app.register_blueprint(thermostat_accumulate, url_prefix="/")
 
 if __name__ != '__main__':
     gunicorn_logger = logging.getLogger('gunicorn.error')
-    app.logger.handlers = gunicorn_logger.handlers
-    app.logger.setLevel(gunicorn_logger.level)
+    #app.logger.handlers = gunicorn_logger.handlers
+    #app.logger.setLevel(gunicorn_logger.level)
+    client = google.cloud.logging.Client()
+    handler = CloudLoggingHandler(client)
+    logging.getLogger().setLevel(gunicorn_logger.level)
+    #client.get_default_handler()
+    setup_logging(handler)
 
 
 def create_file(payload, filename):
@@ -220,12 +227,12 @@ def store_metric_environment():
 
         value_dict = {"temp_basement": json_content.get('temperature')}
 
-        accumulator = Accumulator(app.logger)
+        accumulator = Accumulator()
         n = utcnow()
         try:
             accumulator.add_temperature2(n, value_dict=value_dict)
         except ValueError as ex:
-            app.logger.warn("Accumulator - no value to add - content: {} --- {}".format(payload,ex))
+            logging.warn("Accumulator - no value to add - content: {} --- {}".format(payload,ex))
 
     return ('', 204)
 
@@ -280,7 +287,7 @@ def query(url_query, audience, method='GET', body=None):
     try:
         resp.json()
     except:
-        app.logger.error("Error while querying : {} - {}".format(
+        logging.error("Error while querying : {} - {}".format(
             url_query, resp.reason))
         pass
 
@@ -378,19 +385,19 @@ def digest(
         hourly_last=1,
         realtime_last=14,):
 
-    therm_acc = get_accumulate(app.logger, hold=False).to_df()
+    therm_acc = get_accumulate(hold=False).to_df()
     ppd_value = ppd(therm_acc)
     hourly = get_weather_hourly(last=hourly_last)
     realtime = get_weather_realtime(last=realtime_last)
     therm_acc['datetime'] = therm_acc.index
     x_current_thermostat = therm_acc.tail(1)
     assert x_current_thermostat.iloc[0]['temperature'] is not None
-    app.logger.debug("temp_basement : {}".format(x_current_thermostat.iloc[0].get('temp_basement', default="not available")))
+    logging.debug("temp_basement : {}".format(x_current_thermostat.iloc[0].get('temp_basement', default="not available")))
     current_realtime = realtime.pop(0)
     date_t = pd.to_datetime(x_current_thermostat.iloc[0]['datetime'])
     date_t = round_date(date_t)
     indoor_setpoint = get_set_point(date_t)
-    app.logger.info("Next Action Setpoint : {}".format(indoor_setpoint))
+    logging.info("Next Action Setpoint : {}".format(indoor_setpoint))
     result = {"digest": {}}
     result["digest"]["current"] = {
         "Htg SP": 22,
@@ -461,7 +468,7 @@ def next_action():
     resp = query(url_query, url_gnu_rl, 'POST', body)
 
 
-    accumulator = Accumulator(app.logger)
+    accumulator = Accumulator()
 
     mpc_dict = resp.json().copy()
     for k in list(mpc_dict.keys()):
@@ -485,14 +492,14 @@ def next_action():
         accumulator.add_temperature2(n, value_dict=mpc_dict)
 
     except ValueError as ex:
-        app.logger.warn(
+        logging.warn(
             "Accumulator - no value to add - content: {} --- {}".format(
                 mpc_dict, ex))
 
 
 
-    app.logger.info("Next Action Result : {}".format(resp.json()))
-    app.logger.info("NextAction_Setpoint:{}".format(
+    logging.info("Next Action Result : {}".format(resp.json()))
+    logging.info("NextAction_Setpoint:{}".format(
         resp.json()['sat_stpt']))
 
     next_action_result = {

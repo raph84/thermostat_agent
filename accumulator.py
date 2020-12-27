@@ -9,6 +9,7 @@ import pickle
 import pandas as pd
 import json
 import numpy as np
+import logging
 
 import warnings
 
@@ -34,9 +35,7 @@ class Accumulator():
             except:
                 print("There was no hold.")
 
-    def __init__(self, logger):
-
-        self.logger = logger
+    def __init__(self):
 
         self.entities = []
         # Instantiates a client
@@ -126,7 +125,7 @@ class Accumulator():
                 if isinstance(value_dict.get(k), (bool)):
                     value_dict[k] = int(value_dict.get(k))
                 if not isinstance(value_dict.get(k), (int, float)) or k == 'timestamp':
-                    self.logger.warn(
+                    logging.warn(
                         "Accumulator only accepts int, float or boolean - {} : {}"
                         .format(k, value_dict.get(k)))
                     del value_dict[k]
@@ -140,7 +139,7 @@ class Accumulator():
 
         part = ceil_dt(d, 15)
         if self.entities[0].entity.dt < part:
-            self.logger.info(
+            logging.info(
                 "Last partition was for {}. Now we need a new one for {}.".
                 format(self.entities[0].entity.dt.isoformat(),
                        part.isoformat()))
@@ -153,7 +152,7 @@ class Accumulator():
             self.entities[0].blob.temporary_hold = True
             self.entities[0].blob.patch()
         except Exception as ex:
-            self.logger.warn("Blob HOLD failed : {}".format(ex))
+            logging.warn("Blob HOLD failed : {}".format(ex))
 
 
     def add_temperature(self, d, temp=None, humidity=None, motion=None, stove_exhaust_temp=None, temp_basement=None):
@@ -172,7 +171,7 @@ class Accumulator():
 
         part = ceil_dt(d, 15)
         if self.entities[0].entity.dt < part:
-            self.logger.info(
+            logging.info(
                 "Last partition was for {}. Now we need a new one for {}.".
                 format(self.entities[0].entity.dt.isoformat(), part.isoformat()))
 
@@ -184,7 +183,7 @@ class Accumulator():
             self.entities[0].blob.temporary_hold = True
             self.entities[0].blob.patch()
         except Exception as ex:
-            self.logger.warn("Blob HOLD failed : {}".format(ex))
+            logging.warn("Blob HOLD failed : {}".format(ex))
 
     def to_dict(self):
         # resp = []

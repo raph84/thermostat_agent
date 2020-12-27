@@ -1,5 +1,6 @@
 import json
 import base64
+import logging
 
 from flask import Blueprint
 from flask import current_app as app
@@ -22,7 +23,7 @@ def test_accumulate():
 
 
 def acc(j):
-    accumulator = Accumulator(app.logger)
+    accumulator = Accumulator()
     n = utcnow()
 
     if j.get('temperature') is not None:
@@ -35,7 +36,7 @@ def acc(j):
     try:
         accumulator.add_temperature2(n, value_dict=j)
     except ValueError as ex:
-        app.logger.warn(
+        logging.warn(
             "Accumulator - no value to add - content: {} --- {}".format(
                 payload, ex))
 
@@ -66,7 +67,7 @@ def accumulate_metric_thermostat():
 
         acc(json.loads(payload))
     except Exception as ex:
-        app.logger.error("Unable to loads payload Json {} : {}".format(
+        logging.error("Unable to loads payload Json {} : {}".format(
             ex, payload))
 
     return ('', 204)
@@ -79,7 +80,7 @@ def get_accumulate_metric_thermostat():
     records = bool(request.args.get('records', False))
 
     if load >= 1:
-        accumulate = get_accumulate(logger=app.logger, load=load)
+        accumulate = get_accumulate(load=load)
     else:
         accumulate = get_accumulate()
 
@@ -91,8 +92,8 @@ def get_accumulate_metric_thermostat():
     return (resp, 200)
 
 
-def get_accumulate(logger, load=2, hold=True):
-    accumulator = Accumulator(logger)
+def get_accumulate(load=2, hold=True):
+    accumulator = Accumulator()
     accumulator.load(load, hold=hold)
 
     return accumulator

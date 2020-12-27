@@ -2,6 +2,7 @@ from flask import Blueprint
 import json
 from flask import current_app
 import os
+import logging
 
 from thermostat_accumulate import get_accumulate
 
@@ -49,8 +50,7 @@ def ppd(tdb=25,
         print(met_typical_tasks['Filing, standing'])
     """
     accumulate = get_accumulate(
-                    load=1, hold=False,
-                    logger = current_app.logger
+                    load=1, hold=False
                 ).to_dict()['accumulation'][0]
 
     result = ppd_from_accumulation_data(accumulation = accumulate)
