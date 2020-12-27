@@ -7,7 +7,7 @@ from thermostat_accumulate import get_accumulate
 
 from pythermalcomfort.models import pmv_ppd
 from pythermalcomfort.psychrometrics import v_relative
-from pythermalcomfort.utilities import met_typical_tasks
+from pythermalcomfort.utilities import met_typical_tasks, clo_typical_ensembles
 
 thermal_comfort = Blueprint('thermal_comfort', __name__)
 
@@ -52,22 +52,24 @@ def ppd(tdb=25,
                     load=1, hold=False,
                     logger = current_app.logger
                 ).to_dict()['accumulation'][0]
-    
+
     result = ppd_from_accumulation_data(accumulation = accumulate)
-    
+
     return result
 
 
 def ppd_from_accumulation_data(accumulation):
-    v_r = v_relative(v=0.1, met=1.2)
+    met = met_typical_tasks['Seated, quiet']
+    clo = clo_typical_ensembles['Sweat pants, long-sleeve sweatshirt']
+    v_r = v_relative(v=0.1, met=met)
 
     results = pmv_ppd(
         tdb=accumulation['temperature'],  #25
         tr=accumulation['temperature'],  #25
         vr=v_r,
         rh=accumulation['humidity'],  #50
-        met=met_typical_tasks['Seated, quiet'],
-        clo=0.5,
+        met=met,
+        clo=clo,
         wme=0,
         standard="ISO")
     print(results)
