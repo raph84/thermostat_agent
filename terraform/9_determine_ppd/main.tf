@@ -118,7 +118,7 @@ resource "google_cloud_run_service" "default" {
 
         env {
           name  = "ACTION_THRESHOLD"
-          value = "1.2"
+          value = "1.0"
         }
 
         ports {
