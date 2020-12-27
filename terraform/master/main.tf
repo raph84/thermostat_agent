@@ -5,8 +5,8 @@
 #
 
 locals {
-  # Ids for multiple sets of EC2 instances, merged together
   project_id = "thermostat-292016"
+  project_iot = "raph-iot"
 }
 
 
@@ -74,7 +74,7 @@ provider "docker" {
     username = "oauth2accesstoken"
     password = data.google_client_config.default.access_token
   }
-  host = "npipe:////.//pipe//docker_engine"
+  #host = "npipe:////.//pipe//docker_engine"
 }
 
 data "docker_registry_image" "thermostat-agent" {
@@ -99,7 +99,7 @@ resource "google_cloud_run_service" "default" {
     spec {
       container_concurrency = 1
       service_account_name  = "thermostat-agent@thermostat-292016.iam.gserviceaccount.com"
-      timeout_seconds       = 30
+      timeout_seconds       = 75
 
       containers {
         args    = []
@@ -109,6 +109,11 @@ resource "google_cloud_run_service" "default" {
         env {
           name  = "PROJECT_ID"
           value = "thermostat-292016"
+        }
+
+        env {
+          name  = "LEVEL"
+          value = "info"
         }
 
         ports {
@@ -146,9 +151,24 @@ resource "google_cloud_run_service_iam_member" "iam_thermostat-iot" {
   location = "us-east4"
   member   = "serviceAccount:thermostat-iot@raph-iot.iam.gserviceaccount.com"
 }
+resource "google_cloud_run_service_iam_member" "thermostat-agent-id" {
+  project  = local.project_id
+  service  = "thermostat-agent"
+  role     = "roles/run.invoker"
+  location = "us-east4"
+  member   = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
+  ## Identity used by Cloud Scheduler to invoke next_action
+}
 resource "google_cloud_run_service_iam_member" "iam-api-call" {
   project  = local.project_id
   service  = "thermostat-agent"
+  role     = "roles/run.invoker"
+  location = "us-east4"
+  member   = join(":", ["serviceAccount", google_service_account.api-call.email])
+}
+resource "google_cloud_run_service_iam_member" "api-call-climacell" {
+  project  = local.project_id
+  service  = "climacell-agent"
   role     = "roles/run.invoker"
   location = "us-east4"
   member   = join(":", ["serviceAccount", google_service_account.api-call.email])
@@ -159,6 +179,12 @@ resource "google_cloud_run_service_iam_member" "iam-api-call" {
 resource "google_project_iam_member" "cloud-debuger" {
   project = local.project_id
   role    = "roles/clouddebugger.agent"
+  member  = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
+}
+
+resource "google_project_iam_member" "thermostat-agent-iot-controller" {
+  project = local.project_iot
+  role    = "roles/cloudiot.deviceController"
   member  = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
 }
 
@@ -197,11 +223,37 @@ resource "google_storage_bucket_iam_binding" "thermostat_metric_data-ObjectAdmin
   ]
 }
 
-resource "google_project_iam_custom_role" "bigquery-ingress-service-role" {
-  role_id     = "bigquery.ingress.serviceAccount"
-  title       = "role/bigquery.ingress.serviceAccount"
-  description = "For service account to be able to insert and read."
-  permissions = ["bigquery.tables.getData", "bigquery.tables.updateData", "bigquery.tables.get"]
+
+
+resource "google_service_account" "thermostat-bigquery" {
+  account_id = "thermostat-bigquery"
+}
+
+data "google_cloudfunctions_function" "data-accumulation-import" {
+  project = local.project_id
+  region = "us-east4"
+  name = "accumulation_import"
+}
+
+output "accumulation_import" {
+  value = data.google_cloudfunctions_function.data-accumulation-import.name
+}
+
+resource "google_cloudfunctions_function_iam_binding" "accumulation-import" {
+  project  = local.project_id
+  region = "us-east4"
+  cloud_function = data.google_cloudfunctions_function.data-accumulation-import.name
+  role     = "roles/cloudfunctions.invoker"
+  members   = [join(":", ["serviceAccount", google_service_account.thermostat-bigquery.email])]
+}
+
+
+resource "google_cloud_run_service_iam_member" "thermostat-bigquery-id" {
+  project  = local.project_id
+  service  = "thermostat-agent"
+  role     = "roles/run.invoker"
+  location = "us-east4"
+  member   = join(":", ["serviceAccount", google_service_account.thermostat-bigquery.email])
 }
 
 resource "google_bigquery_dataset" "dataset-thermostat" {
@@ -219,61 +271,157 @@ resource "google_bigquery_dataset" "dataset-thermostat" {
   
 }
 
-resource "google_bigquery_table" "thermostat_metric" {
+resource "google_bigquery_dataset_iam_binding" "dataEditor" {
   dataset_id = google_bigquery_dataset.dataset-thermostat.dataset_id
-  table_id   = "thermostat_metric"
+  role       = "roles/bigquery.dataEditor"
 
-  time_partitioning {
-    type = "DAY"
-  }
-
-  labels = {
-    project = "thermostat"
-  }
-
-  schema = <<EOF
-[
-  {
-    "name": "location",
-    "type": "String",
-    "mode": "REQUIRED",
-    "description": "IoT Device location"
-  },
-  {
-    "name": "temperature",
-    "type": "NUMERIC",
-    "mode": "NULLABLE",
-    "description": "Temperature from sensor"
-  },
-  {
-    "name": "humidity",
-    "type": "NUMERIC",
-    "mode": "NULLABLE",
-    "description": "Humidity from sensor"
-  },
-  {
-    "name": "stove_exhaust_temp",
-    "type": "NUMERIC",
-    "mode": "NULLABLE",
-    "description": "Stove exhaust temp from thermocouple"
-  },
-  {
-    "name": "motion",
-    "type": "INT64",
-    "mode": "NULLABLE",
-    "description": "Motion detection from sensor"
-  }
-]
-EOF
-
-}
-
-resource "google_bigquery_table_iam_binding" "binding_thermostat_metric" {
-  project = local.project_id
-  dataset_id = google_bigquery_dataset.dataset-thermostat.dataset_id
-  table_id = google_bigquery_table.thermostat_metric.table_id
-  role = "roles/bigquery.dataOwner"
   members = [
-    join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
+    join(":", ["serviceAccount", google_service_account.thermostat-bigquery.email]),
   ]
 }
+
+resource "google_project_iam_member" "jobUser" {
+  project = local.project_id
+  role    = "roles/bigquery.jobUser"
+  member  = join(":", ["serviceAccount", google_service_account.thermostat-bigquery.email])
+}
+
+# resource "google_bigquery_table" "thermostat_metric" {
+#   dataset_id = google_bigquery_dataset.dataset-thermostat.dataset_id
+#   table_id   = "thermostat_metric"
+
+#   time_partitioning {
+#     type = "DAY"
+#   }
+
+#   labels = {
+#     project = "thermostat"
+#   }
+
+#   schema = <<EOF
+# [
+#   {
+#     "name": "location",
+#     "type": "String",
+#     "mode": "REQUIRED",
+#     "description": "IoT Device location"
+#   },
+#   {
+#     "name": "temperature",
+#     "type": "NUMERIC",
+#     "mode": "NULLABLE",
+#     "description": "Temperature from sensor"
+#   },
+#   {
+#     "name": "humidity",
+#     "type": "NUMERIC",
+#     "mode": "NULLABLE",
+#     "description": "Humidity from sensor"
+#   },
+#   {
+#     "name": "stove_exhaust_temp",
+#     "type": "NUMERIC",
+#     "mode": "NULLABLE",
+#     "description": "Stove exhaust temp from thermocouple"
+#   },
+#   {
+#     "name": "motion",
+#     "type": "INT64",
+#     "mode": "NULLABLE",
+#     "description": "Motion detection from sensor"
+#   }
+# ]
+# EOF
+
+# }
+
+resource "google_cloud_scheduler_job" "bigquery" {
+  name             = "thermostat-bigquery"
+  description      = "Determine next action and push it to thermostat"
+  schedule         = "2 * * * *"
+  time_zone        = "Etc/UTC"
+  attempt_deadline = "320s"
+  project = local.project_id
+
+  retry_config {
+    retry_count = 2
+    min_backoff_duration = "60s"
+    max_retry_duration = "40s"
+  }
+
+  http_target {
+    http_method = "GET"
+    uri         = "https://us-east4-thermostat-292016.cloudfunctions.net/accumulation_import"
+
+    oidc_token {
+      service_account_email = google_service_account.thermostat-bigquery.email
+      audience = "https://us-east4-thermostat-292016.cloudfunctions.net/accumulation_import"
+    }
+  }
+}
+
+resource "google_cloud_scheduler_job" "job" {
+  name             = "thermostat-next-action"
+  description      = "Determine next action and push it to thermostat"
+  schedule         = "*/15 * * * *"
+  time_zone        = "Etc/UTC"
+  attempt_deadline = "320s"
+  project = local.project_id
+
+  retry_config {
+    retry_count = 2
+    min_backoff_duration = "60s"
+    max_retry_duration = "40s"
+  }
+
+  http_target {
+    http_method = "GET"
+    uri         = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/next-action"
+
+    oidc_token {
+      service_account_email = google_service_account.thermostat-agent.email
+      audience = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/next-action"
+    }
+  }
+}
+
+data "google_pubsub_topic" "environment-sensor-topic" {
+  name = "environment-sensor"
+  project = "raph-iot"
+}
+
+resource "google_pubsub_subscription" "environment-sensor-sub" {
+    ack_deadline_seconds       = 20
+    enable_message_ordering    = true
+    filter                     = "attributes.deviceId=\"environment-sensor\""
+    labels                     = {
+        "project" = "thermostat"
+    }
+    message_retention_duration = "259200s"
+    name                       = "SUBSCRIPTION_THERMOSTAT_ENVIRONMENT_SENSOR"
+    project                    = "raph-iot"
+    retain_acked_messages      = false
+    topic                      = "projects/raph-iot/topics/environment-sensor"
+
+    expiration_policy {
+        ttl = "2678400s"
+    }
+
+    push_config {
+        attributes    = {}
+        push_endpoint = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/metric/environment-sensor/"
+
+        oidc_token {
+            audience              = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/metric/environment-sensor/"
+            service_account_email = "thermostat-iot@raph-iot.iam.gserviceaccount.com"
+        }
+    }
+
+    retry_policy {
+        maximum_backoff = "600s"
+        minimum_backoff = "30s"
+    }
+
+    timeouts {}
+}
+

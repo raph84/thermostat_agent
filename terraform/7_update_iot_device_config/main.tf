@@ -5,8 +5,8 @@
 #
 
 locals {
-  # Ids for multiple sets of EC2 instances, merged together
   project_id = "thermostat-292016"
+  project_iot = "raph-iot"
 }
 
 
@@ -116,6 +116,11 @@ resource "google_cloud_run_service" "default" {
           value = "info"
         }
 
+        env {
+          name  = "ACTION_THRESHOLD"
+          value = "1.0"
+        }
+
         ports {
           container_port = 8080
         }
@@ -181,6 +186,12 @@ resource "google_project_iam_member" "cloud-debuger" {
   role    = "roles/clouddebugger.agent"
   member  = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
 }
+
+# resource "google_project_iam_member" "thermostat-agent-iot-controller" {
+#   project = local.project_iot
+#   role    = "roles/cloudiot.deviceController"
+#   member  = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
+# }
 
 resource "google_storage_bucket" "thermostat_metric_data" {
   labels = {
