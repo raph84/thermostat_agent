@@ -62,8 +62,6 @@ class Accumulator_Entity():
         value_dict = scan_and_apply_tz(value_dict)
         df_t = pd.DataFrame(value_dict, index=[d])
         df_t = df_t.applymap(lambda x: np.nan if x is None else x)
-        if "occupancy_flag" in self.temperature:
-            self.temperature["occupancy_flag"].apply(lambda x: 0 if x.isnan() else x)
 
         if self.temperature is not None:
             df_t = check_index(df_t)
@@ -72,6 +70,10 @@ class Accumulator_Entity():
         else:
             self.dt = ceil_dt(d, 15)
             self.temperature = df_t
+
+        if "occupancy_flag" in self.temperature:
+            self.temperature["occupancy_flag"].apply(lambda x: 0
+                                                     if x.isnan() else x)
 
 
     def add_temperature(self, d, temp=None, humidity=None, motion=None, stove_exhaust_temp=None, temp_basement=None):
