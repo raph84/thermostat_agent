@@ -70,9 +70,11 @@ def update_config(config_dict,device_id):
                                      device_id)
 
     update_needed = False
+    current_app.logger.info("Config_dict : {}".format(config_dict))
     for k in config_dict.keys():
+        current_app.logger.info("Processing config : {}".format(k))
         if config_dict[k] is not None:
-            if config[k]:
+            if k in config.keys():
                 if config[k] != config_dict[k]:
                     config[k] = config_dict[k]
                     update_needed = True
