@@ -36,6 +36,9 @@ from yadt import scan_and_apply_tz, utc_to_toronto, apply_tz_toronto, parse_date
 
 from thermostat_iot_control import thermostat_iot_control
 from thermostat_decision import heating_decision
+from thermal_comfort import thermal_comfort
+from thermal_comfort import ppd
+from thermostat_accumulate import thermostat_accumulate, get_accumulate
 
 
 # Instantiates a client
@@ -55,6 +58,8 @@ FORMAT_DATE_DASH = "%Y%m%d-%H%M%S"
 app = Flask(__name__)
 app.config["DEBUG"] = True
 app.register_blueprint(thermostat_iot_control, url_prefix="/iot")
+app.register_blueprint(thermal_comfort, url_prefix="/thermal_comfort")
+app.register_blueprint(thermostat_accumulate, url_prefix="/")
 
 if __name__ != '__main__':
     gunicorn_logger = logging.getLogger('gunicorn.error')
@@ -139,12 +144,15 @@ def get_metric_thermostat():
 
     last = request.args.get('last', 1)
 
-    last_json = get_metric_from_bucket(last)
-    last_json = json.dumps(last_json)
-
+    last_json = metric_thermostat(last)
 
     return last_json
 
+def metric_thermostat(last=1):
+    last_json = get_metric_from_bucket(last)
+    last_json = json.dumps(last_json)
+
+    return last_json
 
 @app.route('/metric/thermostat/', methods=['POST'])
 def store_metric_thermostat():
@@ -204,8 +212,8 @@ def store_metric_environment():
             pubsub_message['data']).decode('utf-8').strip()
 
     if "location:house.basement" in payload:
-        print(re.match("temperature\:([0-9]+\.[0-9]+)", payload))
-        json_content = {"temperature": float(re.match(".+temperature:([0-9]+\.[0-9]+)", payload).groups()[0]),
+        print(re.match(r"temperature\\:([0-9]+\\.[0-9]+)", payload))
+        json_content = {"temperature": float(re.match(r".+temperature:([0-9]+\\.[0-9]+)", payload).groups()[0]),
                         "original_payload": payload}
         filename = "environment_sensor_basement-" + datetime.now().strftime(FORMAT_DATE_DASH)
         create_file(json.dumps(json_content), filename)
@@ -368,11 +376,13 @@ def digest(
         hourly_last=1,
         realtime_last=14,):
 
-    therm_acc = get_accumulate().to_df()
+    therm_acc = get_accumulate(app.logger, hold=False).to_df()
+    ppd_value = ppd(therm_acc)
     hourly = get_weather_hourly(last=hourly_last)
     realtime = get_weather_realtime(last=realtime_last)
     therm_acc['datetime'] = therm_acc.index
     x_current_thermostat = therm_acc.tail(1)
+    assert x_current_thermostat.iloc[0]['temperature'] is not None
     app.logger.debug("temp_basement : {}".format(x_current_thermostat.iloc[0].get('temp_basement', default="not available")))
     current_realtime = realtime.pop(0)
     date_t = pd.to_datetime(x_current_thermostat.iloc[0]['datetime'])
@@ -384,7 +394,7 @@ def digest(
         "Htg SP": 22,
         "Indoor Temp. Setpoint": indoor_setpoint,
         "Occupancy Flag": bool(x_current_thermostat.iloc[0].get('motion', default=False)),
-        "PPD": 99,
+        "PPD": ppd_value,
         "Coil Power": coil_power(x_current_thermostat.iloc[0]['stove_exhaust_temp']),
         "MA Temp.": 18,
         "Sys Out Temp.": x_current_thermostat.iloc[0].get('temp_basement'),
@@ -477,7 +487,7 @@ def next_action():
             "Accumulator - no value to add - content: {} --- {}".format(
                 mpc_dict, ex))
 
-       
+
 
     app.logger.info("Next Action Result : {}".format(resp.json()))
     app.logger.info("NextAction_Setpoint:{}".format(
@@ -486,97 +496,13 @@ def next_action():
     next_action_result = {
         "mpc": resp.json(),
         "heating_decision": heating_decision(resp.json())
-    }  
+    }
 
 
     return next_action_result
 
 
-@app.route('/accumulate/', methods=['POST'])
-def test_accumulate():
-    j = request.get_json()
-    accumulator = acc(j)
 
-    resp = accumulator.to_dict()
-    print(resp)
-    return resp
-
-
-def acc(j):
-    accumulator = Accumulator(app.logger)
-    n = utcnow()
-
-    if j.get('temperature') is not None:
-        j['temperature'] = float(j.get('temperature'))
-    if j.get('humidity') is not None:
-        j['humidity'] = float(j.get('humidity'))
-    if j.get('stove_exhaust_temp') is not None:
-        j['stove_exhaust_temp'] = float(j.get('stove_exhaust_temp'))
-
-
-    try:
-        accumulator.add_temperature2(n, value_dict=j)
-    except ValueError as ex:
-        app.logger.warn(
-            "Accumulator - no value to add - content: {} --- {}".format(
-                payload, ex))
-
-    return accumulator
-
-@app.route('/metric/accumulate/', methods=['POST'])
-def accumulate_metric_thermostat():
-    envelope = request.get_json()
-    if not envelope:
-        msg = 'no Pub/Sub message received'
-        print(f'error: {msg}')
-        return f'Bad Request: {msg}', 400
-
-    if not isinstance(envelope, dict) or 'message' not in envelope:
-        msg = 'invalid Pub/Sub message format'
-        print(f'error: {msg}')
-        return f'Bad Request: {msg}', 400
-
-    pubsub_message = envelope['message']
-
-    payload = ''
-    if isinstance(pubsub_message, dict) and 'data' in pubsub_message:
-        payload = base64.b64decode(
-            pubsub_message['data']).decode('utf-8').strip()
-    try:
-        j = json.loads(payload)
-
-        acc(json.loads(payload))
-    except Exception as ex:
-        app.logger.error("Unable to loads payload Json {} : {}".format(
-            ex,payload))
-
-    return ('', 204)
-
-
-@app.route('/metric/accumulate/', methods=['GET'])
-def get_accumulate_metric_thermostat():
-
-    load = int(request.args.get('load', None))
-    records = bool(request.args.get('records', False))
-
-    if load>=1:
-        accumulate = get_accumulate(load)
-    else:
-        accumulate = get_accumulate()
-
-    if records:
-        resp = accumulate.to_json_records()
-    else:
-        resp = accumulate.to_dict()
-
-    return (resp, 200)
-
-
-def get_accumulate(load=2):
-    accumulator = Accumulator(app.logger)
-    accumulator.load(load,hold=True)
-
-    return accumulator
 
 
 
