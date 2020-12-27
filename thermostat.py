@@ -212,8 +212,8 @@ def store_metric_environment():
             pubsub_message['data']).decode('utf-8').strip()
 
     if "location:house.basement" in payload:
-        print(re.match(r"temperature\\:([0-9]+\\.[0-9]+)", payload))
-        json_content = {"temperature": float(re.match(r".+temperature:([0-9]+\\.[0-9]+)", payload).groups()[0]),
+        print(re.match(r"temperature:([0-9]+\.[0-9]+)", payload))
+        json_content = {"temperature": float(re.match(r".+temperature:([0-9]+\.[0-9]+)", payload).groups()[0]),
                         "original_payload": payload}
         filename = "environment_sensor_basement-" + datetime.now().strftime(FORMAT_DATE_DASH)
         create_file(json.dumps(json_content), filename)
