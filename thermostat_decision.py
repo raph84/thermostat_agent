@@ -1,6 +1,8 @@
 from thermostat_iot_control import update_config
 from flask import current_app
 
+ACTION_THRESHOLD = float(os.environ.get('ACTION_THRESHOLD',0.75))
+
 
 def heating_decision(next_action):
 
@@ -18,7 +20,7 @@ def heating_decision(next_action):
     config_dict = {}
     action = float(next_action['action'])
 
-    if float(next_action['action']) > 0.6:
+    if float(next_action['action']) > ACTION_THRESHOLD:
 
         config_dict['heating_state'] = True
     else:
