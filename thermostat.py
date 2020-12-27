@@ -63,15 +63,14 @@ app.register_blueprint(thermostat_iot_control, url_prefix="/iot")
 app.register_blueprint(thermal_comfort, url_prefix="/thermal_comfort")
 app.register_blueprint(thermostat_accumulate, url_prefix="/")
 
-if __name__ != '__main__':
+if 'FLASK_APP' not in os.environ.keys():
     gunicorn_logger = logging.getLogger('gunicorn.error')
-    #app.logger.handlers = gunicorn_logger.handlers
-    #app.logger.setLevel(gunicorn_logger.level)
     client = google.cloud.logging.Client()
     handler = CloudLoggingHandler(client)
-    logging.getLogger().setLevel(gunicorn_logger.level)
-    #client.get_default_handler()
-    setup_logging(handler)
+    cloud_logger = logging.getLogger('cloudLogger')
+    cloud_logger.setLevel(logging.INFO) # defaults to WARN
+    cloud_logger.addHandler(handler)
+
 
 
 def create_file(payload, filename):
@@ -386,7 +385,7 @@ def digest(
         realtime_last=14,):
 
     therm_acc = get_accumulate(hold=False).to_df()
-    ppd_value = ppd(therm_acc)
+    ppd_value = ppd(therm_acc)['ppd']
     hourly = get_weather_hourly(last=hourly_last)
     realtime = get_weather_realtime(last=realtime_last)
     therm_acc['datetime'] = therm_acc.index
