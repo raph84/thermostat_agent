@@ -1,4 +1,5 @@
 from thermostat_iot_control import update_config
+from flask import current_app
 
 
 def heating_decision(next_action):
@@ -15,10 +16,11 @@ def heating_decision(next_action):
     }
     '''
     config_dict = {}
+    action = float(next_action['action'])
 
-    if next_action['action'] > 0.6:
+    if float(next_action['action']) > 0.6:
+        current_app.logger.info("Next action decision factor {}; Heating_state needs to be True.")
         config_dict['heating_state'] = True
-
     else:
         config_dict['heating_state'] = False
 

@@ -1,6 +1,7 @@
 from flask import Blueprint
 from google.cloud import iot_v1
 import json
+from flask import current_app
 
 thermostat_iot_control = Blueprint('thermostat_iot_control', __name__)
 
@@ -68,18 +69,28 @@ def update_config(config_dict,device_id):
     device_path = client.device_path(project_id, cloud_region, registry_id,
                                      device_id)
 
+    update_needed = False
     for k in config_dict.keys():
         if config_dict[k] is not None:
             if config[k]:
-                config[k] = config_dict[k]
+                if config[k] != config_dict[k]
+                    config[k] = config_dict[k]
+                    update_needed = True
+                else:
+                    current_app.logger.info("Config key {} is already set to {}. No update required.".format(k, config[k]))
+            else:
+                current_app.logger.warn("Config key {} non existant.")
 
-    data = json.dumps(config).encode("utf-8")
+    if update_needed:
+        data = json.dumps(config).encode("utf-8")
 
-    device_config = client.modify_cloud_to_device_config(
-        request={
-            "name": device_path,
-            "binary_data": data,
-            "version_to_update": version
-        })
+        device_config = client.modify_cloud_to_device_config(
+            request={
+                "name": device_path,
+                "binary_data": data,
+                "version_to_update": version
+            })
+    else:
+        current_app.logger.info("No config update required. Config already up 2 date.")
 
     return config
