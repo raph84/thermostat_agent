@@ -218,10 +218,12 @@ def store_metric_environment():
         filename = "environment_sensor_basement-" + datetime.now().strftime(FORMAT_DATE_DASH)
         create_file(json.dumps(json_content), filename)
 
+        value_dict = {"temp_basement": json_content.get('temperature')}
+
         accumulator = Accumulator(app.logger)
         n = utcnow()
         try:
-            accumulator.add_temperature(n, temp_basement=json_content.get('temperature'))
+            accumulator.add_temperature2(n, value_dict=value_dict)
         except ValueError as ex:
             app.logger.warn("Accumulator - no value to add - content: {} --- {}".format(payload,ex))
 
