@@ -79,7 +79,7 @@ def update_config(config_dict,device_id):
                 else:
                     current_app.logger.info("Config key {} is already set to {}. No update required.".format(k, config[k]))
             else:
-                current_app.logger.warn("Config key {} non existant.")
+                current_app.logger.warn("Config key {} non existant.".format(k))
 
     if update_needed:
         data = json.dumps(config).encode("utf-8")

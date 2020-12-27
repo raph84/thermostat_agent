@@ -19,10 +19,14 @@ def heating_decision(next_action):
     action = float(next_action['action'])
 
     if float(next_action['action']) > 0.6:
-        current_app.logger.info("Next action decision factor {}; Heating_state needs to be True.")
+
         config_dict['heating_state'] = True
     else:
         config_dict['heating_state'] = False
+
+    current_app.logger.info(
+        "Next action decision factor {}; Heating_state needs to be {}.".format(
+            next_action['action'], config_dict['heating_state']))
 
     config = update_config(config_dict,"thermostat1")
 
