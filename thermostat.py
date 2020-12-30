@@ -41,6 +41,7 @@ from thermostat_decision import heating_decision
 from thermal_comfort import thermal_comfort
 from thermal_comfort import ppd
 from thermostat_accumulate import thermostat_accumulate, get_accumulate
+from thermostat_aggregation import thermostat_aggregation, get_aggregation_metric_thermostat
 
 
 # Instantiates a client
@@ -62,6 +63,7 @@ app.config["DEBUG"] = True
 app.register_blueprint(thermostat_iot_control, url_prefix="/iot")
 app.register_blueprint(thermal_comfort, url_prefix="/thermal_comfort")
 app.register_blueprint(thermostat_accumulate, url_prefix="/")
+app.register_blueprint(thermostat_aggregation, url_prefix="/")
 
 if 'FLASK_APP' not in os.environ.keys():
     gunicorn_logger = logging.getLogger('gunicorn.error')
@@ -127,7 +129,7 @@ def get_metric_from_bucket(last=0, pref='thermostat', last_file=None, first_file
     print("Get last {} thermostat metric(s).".format(last))
     for i in last:
         try:
-            json_str = blobs[i].download_as_string()
+            json_str = blobs[i].download_as_bytes()
             j = json.loads(json_str)
             j = scan_and_apply_tz(j)
 
@@ -363,6 +365,14 @@ def digest():
                     realtime_end)
 
 def coil_power(stove_exhaust_temp):
+    """ Deprecated
+        Moved to thermostat_aggregation.py
+    """
+    warnings.warn(
+        "thermostat.coil_power( ) is deprecated",
+        DeprecationWarning,
+        stacklevel=2)
+
     max_coil_power = 10613.943465
     min_coil_power = 0.0
     max_stove_exhaust_temp = 130.0
@@ -384,69 +394,37 @@ def digest(
         hourly_last=1,
         realtime_last=14,):
 
-    therm_acc = get_accumulate(hold=False).to_df()
-    ppd_value = ppd(therm_acc)['ppd']
-    hourly = get_weather_hourly(last=hourly_last)
-    realtime = get_weather_realtime(last=realtime_last)
-    therm_acc['datetime'] = therm_acc.index
-    x_current_thermostat = therm_acc.tail(1)
-    assert x_current_thermostat.iloc[0]['temperature'] is not None
-    logging.debug("temp_basement : {}".format(x_current_thermostat.iloc[0].get('temp_basement', default="not available")))
-    current_realtime = realtime.pop(0)
-    date_t = pd.to_datetime(x_current_thermostat.iloc[0]['datetime'])
-    date_t = round_date(date_t)
-    indoor_setpoint = get_set_point(date_t)
-    logging.info("Next Action Setpoint : {}".format(indoor_setpoint))
-    result = {"digest": {}}
-    result["digest"]["current"] = {
-        "Htg SP": 22,
-        "Indoor Temp. Setpoint": indoor_setpoint,
-        "Occupancy Flag": bool(x_current_thermostat.iloc[0].get('motion', default=False)),
-        "PPD": ppd_value,
-        "Coil Power": coil_power(x_current_thermostat.iloc[0]['stove_exhaust_temp']),
-        "MA Temp.": 18,
-        "Sys Out Temp.": x_current_thermostat.iloc[0].get('temp_basement'),
-        "dt": format_date(date_t),
-        "Outdoor Temp.": current_realtime['temp']['value'],
-        "Outdoor RH": current_realtime['humidity']['value'],
-        "Wind Speed": current_realtime['wind_speed']['value'],
-        "Wind Direction": current_realtime['wind_direction']['value'],
-        "Direct Solar Rad.": current_realtime['surface_shortwave_radiation']['value'] or 0.0,
-        "Indoor Temp.": x_current_thermostat.iloc[0]['temperature']
-    }
-    result["digest"]["date"] = format_date(date_t)
-    disturbances = []
+    agg2, hourly = get_aggregation_metric_thermostat()
+    agg2 = agg2.replace({np.nan: None})
+    # agg2['dt'] = agg2['dt'].apply(
+    #     lambda x: utc_to_toronto(x.to_pydatetime()).isoformat())
 
-    for r in realtime:
-        date_r = datetime.strptime(r['observation_time']['value'],
-                                   '%Y-%m-%dT%H:%M:%S.%f%z')
-        date_r = date_r.replace(tzinfo=None)
-        if date_r < date_t:
-            mapping = map_climacell_data(r)
-            date_r_pd = pd.to_datetime(date_r)
-            nearest_t = therm_acc.iloc[therm_acc.index.get_loc(
-                date_r_pd, method='nearest')]
-            mapping["Indoor Temp."] = nearest_t["temperature"]
-            if nearest_t["motion"]:
-                mapping["Occupancy Flag"] = 1
-            else:
-                mapping["Occupancy Flag"] = 0
+    agg2['Occupancy Flag'] = agg2['Occupancy Flag'].apply(lambda x: 1 if x else 0)
+    hourly['dt'] =hourly.index.values
+    hourly['dt'] = hourly['dt'].apply(
+        lambda x: utc_to_toronto(x.to_pydatetime()).isoformat())
 
-            disturbances.append(copy.deepcopy(mapping))
+    hourly['Occupancy Flag'] = hourly['Occupancy Flag'].apply(lambda x: 1
+                                                              if x else 0)
 
-    for h in hourly:
-        date_h = parse_date(h['observation_time']['value'])
-        #date_h = date_h.replace(tzinfo=None)
-        date_temp = parse_date(result["digest"]["date"], toronto=True)
-        diff = ((date_h - date_temp).total_seconds() // 3600)
-        if diff < 4 and diff >= 0:
-            mapping = map_climacell_data(h)
-            mapping["Occupancy Flag"] = 0
 
-            disturbances.append(copy.deepcopy(mapping))
+    nan_agg2 = agg2.isnull().sum()
+    nan_hourly = hourly.isnull().sum()
 
-    disturbances = resample_disturbances(disturbances)
-    result["digest"]["disturbances"] = disturbances
+    current = agg2.tail(1).to_dict('records')[0]
+    disturbances = agg2.drop(agg2.tail(1).index).tail(14)
+    disturbances = disturbances.append(hourly)
+
+    result = {"digest": {
+                    "current": current,
+                    "disturbances": disturbances.to_dict('records'),
+                    "date": current['dt']
+                }
+            }
+
+
+    logging.info("digest - current date : {}".format(result["digest"]["date"]))
+
     return result["digest"]
 
 

@@ -49,29 +49,20 @@ def ppd(tdb=25,
         from pythermalcomfort.utilities import met_typical_tasks
         print(met_typical_tasks['Filing, standing'])
     """
-    accumulate = get_accumulate(
-                    load=1, hold=False
-                ).to_dict()['accumulation'][0]
-
-    result = ppd_from_accumulation_data(accumulation = accumulate)
-
-    return result
-
-
-def ppd_from_accumulation_data(accumulation):
     met = met_typical_tasks['Seated, quiet']
     clo = clo_typical_ensembles['Sweat pants, long-sleeve sweatshirt']
     v_r = v_relative(v=0.1, met=met)
 
     results = pmv_ppd(
-        tdb=accumulation['temperature'],  #25
-        tr=accumulation['temperature'],  #25
+        tdb=tdb,  #25
+        tr=tr,  #25
         vr=v_r,
-        rh=accumulation['humidity'],  #50
+        rh=rh,  #50
         met=met,
         clo=clo,
         wme=0,
         standard="ISO")
-    print(results)
+    
+    logging.debug(results)
 
     return {"ppd": results['ppd']}
