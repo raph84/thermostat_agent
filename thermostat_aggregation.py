@@ -279,6 +279,7 @@ def get_aggregation_metric_thermostat():
     end_date = utc_to_toronto(agg2.index.max().to_pydatetime())
     #end_date = parse_date("2020-12-30T08:43:00-0500")
 
+    logging.info("Downloading latest thermostat metrics...")
     metric_list = list(storage_client.list_blobs(bucket_name, prefix='thermostat'))
     metric_list.reverse()
     thermostat_agg = aggregator(metric_list, date_function_thermostat, value_function_thermostat, date_selection_realtime, end_date)
@@ -290,6 +291,7 @@ def get_aggregation_metric_thermostat():
     if len(thermostat_agg) > 0:
         logging.info("New thermostat metric to aggregate : {}".format(thermostat_agg.index.min()))
 
+        logging.info("Downloading latest basement metrics...")
         basement_list = list(storage_client.list_blobs(bucket, prefix='environment_sensor_basement-'))
         basement_list.reverse()
         basement_agg = aggregator(basement_list, date_function_basement,
@@ -298,7 +300,7 @@ def get_aggregation_metric_thermostat():
                                   end_date - timedelta(hours=1))
         basement_agg = basement_agg.resample('15Min').mean()
 
-
+        logging.info("Downloading latest realtime weather...")
         realtime_list = list(storage_client.list_blobs(bucket_climacell, prefix='realtime'))
         realtime_list.reverse()
         realtime_agg = aggregator(realtime_list, date_function_climacell,
@@ -368,7 +370,7 @@ def get_aggregation_metric_thermostat():
             print("Duplicate agg_x : {}".format(dup_agg2))
             logging.warn("Duplicate agg_x : {}".format(dup_agg2))
 
-
+        logging.info("Uploading aggregation results...")
         pickle_dump = pickle.dumps(agg2)
         b = bucket.get_blob(FILENAME)
         b.temporary_hold = False
@@ -383,11 +385,13 @@ def get_aggregation_metric_thermostat():
     hourly_list = list(storage_client.list_blobs(bucket_climacell, prefix='hourly'))
     hourly_list.reverse()
 
+    logging.info("Downloading latest hourly weather forecast...")
     hourly_agg = aggregator(hourly_list, date_function_climacell, value_function_climacell, date_selection_hourly, hourly_end, hourly_start)
     rename_climacell_columns(hourly_agg)
     hourly_agg = hourly_agg.resample('15Min').interpolate(method='linear')
     hourly_agg['Occupancy Flag'] = False
     #del hourly_agg['dt']
+
 
     agg2.interpolate(limit=6, inplace=True)
 
@@ -395,5 +399,7 @@ def get_aggregation_metric_thermostat():
     nan_hourly = hourly_agg.isnull().sum()
 
     #agg2 = agg2.append(hourly_agg)
+
+    logging.info("Data aggregation done.")
 
     return agg2, hourly_agg

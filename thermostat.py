@@ -439,7 +439,7 @@ def next_action():
     realtime_start = request.args.get('realtime_start', None)
     realtime_end = request.args.get('realtime_end', None)
 
-
+    logging.info("Calling MPC model...")
     body = digest(hourly_start, hourly_end, realtime_start, realtime_end)
     url_query = url_gnu_rl + '/mpc/'
     resp = query(url_query, url_gnu_rl, 'POST', body)
