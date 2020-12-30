@@ -99,7 +99,7 @@ resource "google_cloud_run_service" "default" {
     spec {
       container_concurrency = 1
       service_account_name  = "thermostat-agent@thermostat-292016.iam.gserviceaccount.com"
-      timeout_seconds       = 75
+      timeout_seconds       = 180
 
       containers {
         args    = []
