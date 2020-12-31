@@ -373,7 +373,7 @@ def get_aggregation_metric_thermostat():
         dup_agg2 = agg2.index.duplicated().sum()
         if dup_agg2 > 0:
             print("Duplicate agg_x : {}".format(dup_agg2))
-            cloud_logger.warn("Duplicate agg_x : {}".format(dup_agg2))
+            cloud_logger.warning("Duplicate agg_x : {}".format(dup_agg2))
 
         cloud_logger.info("Uploading aggregation results...")
         pickle_dump = pickle.dumps(agg2)
