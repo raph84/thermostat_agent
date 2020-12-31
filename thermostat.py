@@ -31,7 +31,6 @@ import iso8601
 import re
 import numpy as np
 
-from accumulator import Accumulator
 
 from utils import utcnow, ceil_dt, get_tz, get_utc_tz
 from yadt import scan_and_apply_tz, utc_to_toronto, apply_tz_toronto, parse_date
@@ -228,12 +227,6 @@ def store_metric_environment():
 
         value_dict = {"temp_basement": json_content.get('temperature')}
 
-        accumulator = Accumulator()
-        n = utcnow()
-        try:
-            accumulator.add_temperature2(n, value_dict=value_dict)
-        except ValueError as ex:
-            cloud_logger.warn("Accumulator - no value to add - content: {} --- {}".format(payload,ex))
 
     return ('', 204)
 
@@ -445,8 +438,6 @@ def next_action():
     resp = query(url_query, url_gnu_rl, 'POST', body)
 
 
-    accumulator = Accumulator()
-
     mpc_dict = resp.json().copy()
     for k in list(mpc_dict.keys()):
         mpc_dict['mpc_' + k] = mpc_dict.pop(k)
@@ -464,15 +455,7 @@ def next_action():
                                   .replace(".", "")
                                   .lower()] = current_dict.pop(k)
 
-    try:
-        accumulator.add_temperature2(n, value_dict=current_dict)
-        accumulator.add_temperature2(n, value_dict=mpc_dict)
-
-    except ValueError as ex:
-        cloud_logger.warn(
-            "Accumulator - no value to add - content: {} --- {}".format(
-                mpc_dict, ex))
-
+    # TODO Aggregate MPC
 
 
     cloud_logger.info("Next Action Result : {}".format(resp.json()))

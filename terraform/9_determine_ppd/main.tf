@@ -347,30 +347,30 @@ resource "google_project_iam_member" "jobUser" {
 
 # }
 
-resource "google_cloud_scheduler_job" "bigquery" {
-  name             = "thermostat-bigquery"
-  description      = "Determine next action and push it to thermostat"
-  schedule         = "*/32 * * * *"
-  time_zone        = "Etc/UTC"
-  attempt_deadline = "320s"
-  project = local.project_id
+# resource "google_cloud_scheduler_job" "bigquery" {
+#   name             = "thermostat-bigquery"
+#   description      = "Determine next action and push it to thermostat"
+#   schedule         = "*/32 * * * *"
+#   time_zone        = "Etc/UTC"
+#   attempt_deadline = "320s"
+#   project = local.project_id
 
-  retry_config {
-    retry_count = 2
-    min_backoff_duration = "60s"
-    max_retry_duration = "40s"
-  }
+#   retry_config {
+#     retry_count = 2
+#     min_backoff_duration = "60s"
+#     max_retry_duration = "40s"
+#   }
 
-  http_target {
-    http_method = "GET"
-    uri         = "https://us-east4-thermostat-292016.cloudfunctions.net/accumulation_import"
+#   http_target {
+#     http_method = "GET"
+#     uri         = "https://us-east4-thermostat-292016.cloudfunctions.net/accumulation_import"
 
-    oidc_token {
-      service_account_email = google_service_account.thermostat-bigquery.email
-      audience = "https://us-east4-thermostat-292016.cloudfunctions.net/accumulation_import"
-    }
-  }
-}
+#     oidc_token {
+#       service_account_email = google_service_account.thermostat-bigquery.email
+#       audience = "https://us-east4-thermostat-292016.cloudfunctions.net/accumulation_import"
+#     }
+#   }
+# }
 
 resource "google_cloud_scheduler_job" "job" {
   name             = "thermostat-next-action"
