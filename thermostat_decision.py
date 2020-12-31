@@ -41,4 +41,7 @@ def heating_decision(next_action):
 
     config = update_config(config_dict,"thermostat1")
 
-    return config_dict['heating_state']
+    return {
+            "heating_state" = config_dict['heating_state'],
+            "action_threshold" = ACTION_THRESHOLD
+    }
