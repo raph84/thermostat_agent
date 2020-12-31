@@ -12,6 +12,10 @@ from pythermalcomfort.utilities import met_typical_tasks, clo_typical_ensembles
 
 thermal_comfort = Blueprint('thermal_comfort', __name__)
 
+if 'FLASK_APP' not in os.environ.keys():
+    cloud_logger = logging.getLogger("cloudLogger")
+else:
+    cloud_logger = logging
 
 
 @thermal_comfort.route('/ppd/', methods=['GET'])
@@ -62,7 +66,7 @@ def ppd(tdb=25,
         clo=clo,
         wme=0,
         standard="ISO")
-    
-    logging.debug(results)
+
+    cloud_logger.debug(results)
 
     return {"ppd": results['ppd']}

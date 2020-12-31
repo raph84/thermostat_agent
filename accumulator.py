@@ -10,11 +10,16 @@ import pandas as pd
 import json
 import numpy as np
 import logging
+import os
 
 import warnings
 
 from yadt import scan_and_apply_tz, utc_to_toronto
 
+if 'FLASK_APP' not in os.environ.keys():
+    cloud_logger = logging.getLogger("cloudLogger")
+else:
+    cloud_logger = logging
 
 
 class Accumulator():
@@ -125,7 +130,7 @@ class Accumulator():
                 if isinstance(value_dict.get(k), (bool)):
                     value_dict[k] = int(value_dict.get(k))
                 if not isinstance(value_dict.get(k), (int, float)) or k == 'timestamp':
-                    logging.warning(
+                    cloud_logger.warning(
                         "Accumulator only accepts int, float or boolean - {} : {}"
                         .format(k, value_dict.get(k)))
                     del value_dict[k]
@@ -139,7 +144,7 @@ class Accumulator():
 
         part = ceil_dt(d, 15)
         if self.entities[0].entity.dt < part:
-            logging.info(
+            cloud_logger.info(
                 "Last partition was for {}. Now we need a new one for {}.".
                 format(self.entities[0].entity.dt.isoformat(),
                        part.isoformat()))
@@ -152,7 +157,7 @@ class Accumulator():
             self.entities[0].blob.temporary_hold = True
             self.entities[0].blob.patch()
         except Exception as ex:
-            logging.warn("Blob HOLD failed : {}".format(ex))
+            cloud_logger.warning("Blob HOLD failed : {}".format(ex))
 
 
     def add_temperature(self, d, temp=None, humidity=None, motion=None, stove_exhaust_temp=None, temp_basement=None):
@@ -171,7 +176,7 @@ class Accumulator():
 
         part = ceil_dt(d, 15)
         if self.entities[0].entity.dt < part:
-            logging.info(
+            cloud_logger.info(
                 "Last partition was for {}. Now we need a new one for {}.".
                 format(self.entities[0].entity.dt.isoformat(), part.isoformat()))
 
@@ -183,7 +188,7 @@ class Accumulator():
             self.entities[0].blob.temporary_hold = True
             self.entities[0].blob.patch()
         except Exception as ex:
-            logging.warn("Blob HOLD failed : {}".format(ex))
+            cloud_logger.warn("Blob HOLD failed : {}".format(ex))
 
     def to_dict(self):
         # resp = []

@@ -67,9 +67,12 @@ app.register_blueprint(thermostat_aggregation, url_prefix="/")
 
 if 'FLASK_APP' not in os.environ.keys():
     client = google.cloud.logging.Client()
-    client.setup_logging(log_level=logging.INFO,
-                          excluded_loggers=("werkzeug", ))
-
+    handler = client.get_default_handler()
+    cloud_logger = logging.getLogger("cloudLogger")
+    cloud_logger.setLevel(logging.INFO)
+    cloud_logger.addHandler(handler)
+else:
+    cloud_logger = logging
 
 
 def create_file(payload, filename):
@@ -230,7 +233,7 @@ def store_metric_environment():
         try:
             accumulator.add_temperature2(n, value_dict=value_dict)
         except ValueError as ex:
-            logging.warn("Accumulator - no value to add - content: {} --- {}".format(payload,ex))
+            cloud_logger.warn("Accumulator - no value to add - content: {} --- {}".format(payload,ex))
 
     return ('', 204)
 
@@ -285,7 +288,7 @@ def query(url_query, audience, method='GET', body=None):
     try:
         resp.json()
     except:
-        logging.error("Error while querying : {} - {}".format(
+        cloud_logger.error("Error while querying : {} - {}".format(
             url_query, resp.reason))
         pass
 
@@ -420,7 +423,7 @@ def digest(
             }
 
 
-    logging.info("digest - current date : {}".format(result["digest"]["date"]))
+    cloud_logger.info("digest - current date : {}".format(result["digest"]["date"]))
 
     return result["digest"]
 
@@ -436,7 +439,7 @@ def next_action():
     realtime_start = request.args.get('realtime_start', None)
     realtime_end = request.args.get('realtime_end', None)
 
-    logging.info("Calling MPC model...")
+    cloud_logger.info("Calling MPC model...")
     body = digest(hourly_start, hourly_end, realtime_start, realtime_end)
     url_query = url_gnu_rl + '/mpc/'
     resp = query(url_query, url_gnu_rl, 'POST', body)
@@ -466,14 +469,14 @@ def next_action():
         accumulator.add_temperature2(n, value_dict=mpc_dict)
 
     except ValueError as ex:
-        logging.warn(
+        cloud_logger.warn(
             "Accumulator - no value to add - content: {} --- {}".format(
                 mpc_dict, ex))
 
 
 
-    logging.info("Next Action Result : {}".format(resp.json()))
-    logging.info("NextAction_Setpoint:{}".format(
+    cloud_logger.info("Next Action Result : {}".format(resp.json()))
+    cloud_logger.info("NextAction_Setpoint:{}".format(
         resp.json()['sat_stpt']))
 
     next_action_result = {

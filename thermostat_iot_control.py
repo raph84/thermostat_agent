@@ -3,8 +3,14 @@ from google.cloud import iot_v1
 import json
 from flask import current_app
 import logging
+import os
 
 thermostat_iot_control = Blueprint('thermostat_iot_control', __name__)
+
+if 'FLASK_APP' not in os.environ.keys():
+    cloud_logger = logging.getLogger("cloudLogger")
+else:
+    cloud_logger = logging
 
 project_id = 'raph-iot'
 cloud_region = 'us-central1'
@@ -71,18 +77,18 @@ def update_config(config_dict,device_id):
                                      device_id)
 
     update_needed = False
-    logging.info("Config_dict : {}".format(config_dict))
+    cloud_logger..info("Config_dict : {}".format(config_dict))
     for k in config_dict.keys():
-        logging.info("Processing config : {}".format(k))
+        cloud_logger..info("Processing config : {}".format(k))
         if config_dict[k] is not None:
             if k in config.keys():
                 if config[k] != config_dict[k]:
                     config[k] = config_dict[k]
                     update_needed = True
                 else:
-                    logging.info("Config key {} is already set to {}. No update required.".format(k, config[k]))
+                    cloud_logger..info("Config key {} is already set to {}. No update required.".format(k, config[k]))
             else:
-                logging.warn("Config key {} non existant.".format(k))
+                cloud_logger..warn("Config key {} non existant.".format(k))
 
     if update_needed:
         data = json.dumps(config).encode("utf-8")
@@ -94,6 +100,6 @@ def update_config(config_dict,device_id):
                 "version_to_update": version
             })
     else:
-        logging.info("No config update required. Config already up 2 date.")
+        cloud_logger..info("No config update required. Config already up 2 date.")
 
     return config

@@ -1,6 +1,7 @@
 import json
 import base64
 import logging
+import os
 
 from flask import Blueprint
 from flask import current_app as app
@@ -11,6 +12,10 @@ from utils import utcnow, ceil_dt, get_tz, get_utc_tz
 
 thermostat_accumulate = Blueprint('thermostat_accumulate', __name__)
 
+if 'FLASK_APP' not in os.environ.keys():
+    cloud_logger = logging.getLogger("cloudLogger")
+else:
+    cloud_logger = logging
 
 @thermostat_accumulate.route('/accumulate/', methods=['POST'])
 def test_accumulate():
@@ -36,7 +41,7 @@ def acc(j):
     try:
         accumulator.add_temperature2(n, value_dict=j)
     except ValueError as ex:
-        logging.warn(
+        cloud_logger..warn(
             "Accumulator - no value to add - content: {} --- {}".format(
                 payload, ex))
 
@@ -67,7 +72,7 @@ def accumulate_metric_thermostat():
 
         acc(json.loads(payload))
     except Exception as ex:
-        logging.error("Unable to loads payload Json {} : {}".format(
+        cloud_logger..error("Unable to loads payload Json {} : {}".format(
             ex, payload))
 
     return ('', 204)
