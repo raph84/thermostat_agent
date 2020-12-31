@@ -26,7 +26,7 @@ def heating_decision(next_action):
     config_dict = {}
     action = float(next_action['action'])
 
-    cloud_logger..info("Next action : {} ; Threshold : {}".format(
+    cloud_logger.info("Next action : {} ; Threshold : {}".format(
         next_action['action'], ACTION_THRESHOLD))
 
     if float(next_action['action']) > ACTION_THRESHOLD:
@@ -35,7 +35,7 @@ def heating_decision(next_action):
     else:
         config_dict['heating_state'] = False
 
-    cloud_logger..info(
+    cloud_logger.info(
         "Next action decision factor {}; Heating_state needs to be {}.".format(
             next_action['action'], config_dict['heating_state']))
 

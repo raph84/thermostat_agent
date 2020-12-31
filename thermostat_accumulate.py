@@ -41,7 +41,7 @@ def acc(j):
     try:
         accumulator.add_temperature2(n, value_dict=j)
     except ValueError as ex:
-        cloud_logger..warn(
+        cloud_logger.warn(
             "Accumulator - no value to add - content: {} --- {}".format(
                 payload, ex))
 
@@ -72,7 +72,7 @@ def accumulate_metric_thermostat():
 
         acc(json.loads(payload))
     except Exception as ex:
-        cloud_logger..error("Unable to loads payload Json {} : {}".format(
+        cloud_logger.error("Unable to loads payload Json {} : {}".format(
             ex, payload))
 
     return ('', 204)
