@@ -66,12 +66,9 @@ app.register_blueprint(thermostat_accumulate, url_prefix="/")
 app.register_blueprint(thermostat_aggregation, url_prefix="/")
 
 if 'FLASK_APP' not in os.environ.keys():
-    gunicorn_logger = logging.getLogger('gunicorn.error')
     client = google.cloud.logging.Client()
-    handler = CloudLoggingHandler(client)
-    cloud_logger = logging.getLogger('cloudLogger')
-    cloud_logger.setLevel(logging.INFO) # defaults to WARN
-    cloud_logger.addHandler(handler)
+    client.setup_logging(log_level=logging.INFO,
+                          excluded_loggers=("werkzeug", ))
 
 
 
