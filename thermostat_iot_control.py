@@ -7,10 +7,8 @@ import os
 
 thermostat_iot_control = Blueprint('thermostat_iot_control', __name__)
 
-if 'FLASK_APP' not in os.environ.keys():
-    cloud_logger = logging.getLogger("cloudLogger")
-else:
-    cloud_logger = logging
+
+cloud_logger = logging
 
 project_id = 'raph-iot'
 cloud_region = 'us-central1'

@@ -12,10 +12,9 @@ from pythermalcomfort.utilities import met_typical_tasks, clo_typical_ensembles
 
 thermal_comfort = Blueprint('thermal_comfort', __name__)
 
-if 'FLASK_APP' not in os.environ.keys():
-    cloud_logger = logging.getLogger("cloudLogger")
-else:
-    cloud_logger = logging
+
+
+cloud_logger = logging
 
 
 @thermal_comfort.route('/ppd/', methods=['GET'])

@@ -16,10 +16,7 @@ import warnings
 
 from yadt import scan_and_apply_tz, utc_to_toronto
 
-if 'FLASK_APP' not in os.environ.keys():
-    cloud_logger = logging.getLogger("cloudLogger")
-else:
-    cloud_logger = logging
+cloud_logger = logging
 
 
 class Accumulator():

@@ -5,10 +5,8 @@ import logging
 
 ACTION_THRESHOLD = float(os.environ.get('ACTION_THRESHOLD',0.75))
 
-if 'FLASK_APP' not in os.environ.keys():
-    cloud_logger = logging.getLogger("cloudLogger")
-else:
-    cloud_logger = logging
+
+cloud_logger = logging
 
 def heating_decision(next_action):
 

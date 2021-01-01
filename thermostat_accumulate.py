@@ -12,10 +12,8 @@ from utils import utcnow, ceil_dt, get_tz, get_utc_tz
 
 thermostat_accumulate = Blueprint('thermostat_accumulate', __name__)
 
-if 'FLASK_APP' not in os.environ.keys():
-    cloud_logger = logging.getLogger("cloudLogger")
-else:
-    cloud_logger = logging
+
+cloud_logger = logging
 
 @thermostat_accumulate.route('/accumulate/', methods=['POST'])
 def test_accumulate():

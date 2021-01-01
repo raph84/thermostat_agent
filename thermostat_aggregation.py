@@ -16,10 +16,8 @@ import numpy as np
 
 thermostat_aggregation = Blueprint('thermostat_aggregation', __name__)
 
-if 'FLASK_APP' not in os.environ.keys():
-    cloud_logger = logging.getLogger("cloudLogger")
-else:
-    cloud_logger = logging
+
+cloud_logger = logging
 
 FILENAME = "aggregate.p"
 bucket_name = "thermostat_metric_data"

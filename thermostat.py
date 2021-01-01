@@ -65,16 +65,8 @@ app.register_blueprint(thermal_comfort, url_prefix="/thermal_comfort")
 app.register_blueprint(thermostat_accumulate, url_prefix="/")
 app.register_blueprint(thermostat_aggregation, url_prefix="/")
 
-if 'FLASK_APP' not in os.environ.keys():
-    print("Cloud logging")
-    client = google.cloud.logging.Client()
-    handler = client.get_default_handler()
-    cloud_logger = logging.getLogger("cloudLogger")
-    cloud_logger.setLevel(logging.INFO)
-    cloud_logger.addHandler(handler)
-else:
-    print("Local logging")
-    cloud_logger = logging
+
+cloud_logger = logging
 
 
 def create_file(payload, filename):
