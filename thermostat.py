@@ -30,6 +30,7 @@ import pytz
 import iso8601
 import re
 import numpy as np
+from itertools import chain
 
 
 from utils import utcnow, ceil_dt, get_tz, get_utc_tz
@@ -40,7 +41,7 @@ from thermostat_decision import heating_decision
 from thermal_comfort import thermal_comfort
 from thermal_comfort import ppd
 from thermostat_accumulate import thermostat_accumulate, get_accumulate
-from thermostat_aggregation import thermostat_aggregation, get_aggregation_metric_thermostat
+from thermostat_aggregation import thermostat_aggregation, get_aggregation_metric_thermostat, aggregate_next_action_result
 
 
 # Instantiates a client
@@ -65,12 +66,14 @@ app.register_blueprint(thermostat_accumulate, url_prefix="/")
 app.register_blueprint(thermostat_aggregation, url_prefix="/")
 
 if 'FLASK_APP' not in os.environ.keys():
+    print("Cloud logging")
     client = google.cloud.logging.Client()
     handler = client.get_default_handler()
     cloud_logger = logging.getLogger("cloudLogger")
     cloud_logger.setLevel(logging.INFO)
     cloud_logger.addHandler(handler)
 else:
+    print("Local logging")
     cloud_logger = logging
 
 
@@ -458,15 +461,16 @@ def next_action():
     # TODO Aggregate MPC
 
 
+
     cloud_logger.info("Next Action Result : {}".format(resp.json()))
     cloud_logger.info("NextAction_Setpoint:{}".format(
         resp.json()['sat_stpt']))
 
-    next_action_result = {
-        "mpc": resp.json(),
-        "heating_decision": heating_decision(resp.json())
-    }
+    h_d = heating_decision(resp.json())
+    next_action_result = dict(
+        chain.from_iterable(d.items() for d in (mpc_dict, h_d)))
 
+    aggregate_next_action_result(next_action_result)
 
     return next_action_result
 

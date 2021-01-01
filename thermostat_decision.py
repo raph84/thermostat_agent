@@ -39,9 +39,11 @@ def heating_decision(next_action):
         "Next action decision factor {}; Heating_state needs to be {}.".format(
             next_action['action'], config_dict['heating_state']))
 
-    config = update_config(config_dict,"thermostat1")
+    config = update_config(config_dict, "thermostat1")
+    
+    
 
     return {
-            "heating_state" = config_dict['heating_state'],
-            "action_threshold" = ACTION_THRESHOLD
+            "heating_state" : config_dict['heating_state'],
+            "action_threshold" : ACTION_THRESHOLD
     }

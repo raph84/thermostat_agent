@@ -264,6 +264,34 @@ def request_get_aggregation():
         "hourly": hourly.to_dict('records')
     }
 
+def motion_df_resample(agg):
+    end_index = agg.index.max()
+    start_index = agg.index[agg.index.searchsorted(end_index - pd.Timedelta(value=3, unit='hours'))]
+    print(start_index)
+    print(end_index)
+    agg_motion = agg.copy()[start_index:end_index]
+
+    m = agg_motion.copy(deep=True)[['motion']]
+    m['Occupancy Flag'] = m['motion']
+    del m['motion']
+    m['Occupancy Flag'] = m['Occupancy Flag'].apply(lambda x: 1 if x else 0)
+    m = m.resample('3min').sum()
+    # Normalize values
+    m['Occupancy Flag'] = (m['Occupancy Flag'] - m['Occupancy Flag'].min()
+                            ) / (m['Occupancy Flag'].max() -
+                                m['Occupancy Flag'].min())
+    # Exponential decay
+    m['Occupancy Flag'] = m['Occupancy Flag'].ewm(halflife='6Min',
+                                                    times=m.index).mean()
+    m = m[['Occupancy Flag']].resample('15min').sum()
+    # Values bellow 50 quantile will be False
+    m['quantile'] = m['Occupancy Flag'].quantile(q=0.50)
+    m['Occupancy Flag'] = m.apply(
+        lambda x: True if x['Occupancy Flag'] > x['quantile'] else False,
+        axis=1)
+    del m['quantile']
+
+    return m
 
 def get_aggregation_metric_thermostat():
 
@@ -340,25 +368,9 @@ def get_aggregation_metric_thermostat():
         agg_x = agg.resample('15Min').mean()
         print("Duplicate agg_x : {}".format(agg_x.index.duplicated().sum()))
 
-        m = agg.copy()[['motion']]
-        m['Occupancy Flag'] = m['motion']
-        del m['motion']
-        m['Occupancy Flag'] = m['Occupancy Flag'].apply(lambda x: 1 if x else 0)
-        m = m.resample('3min').sum()
-        # Normalize values
-        m['Occupancy Flag'] = (m['Occupancy Flag'] - m['Occupancy Flag'].min()
-                               ) / (m['Occupancy Flag'].max() -
-                                    m['Occupancy Flag'].min())
-        # Exponential decay
-        m['Occupancy Flag'] = m['Occupancy Flag'].ewm(halflife='6Min',
-                                                      times=m.index).mean()
-        m = m[['Occupancy Flag']].resample('15min').sum()
-        # Values bellow 50 quantile will be False
-        m['quantile'] = m['Occupancy Flag'].quantile(q=0.50)
-        m['Occupancy Flag'] = m.apply(
-            lambda x: True if x['Occupancy Flag'] > x['quantile'] else False,
-            axis=1)
-        del m['quantile']
+        ##
+        m = motion_df_resample(agg)
+        ##
 
         agg_x = agg_x.merge(m, left_index=True, right_index=True)
         agg_x = agg_x.merge(basement_agg, left_index=True, right_index=True)
@@ -408,3 +420,37 @@ def get_aggregation_metric_thermostat():
     cloud_logger.info("Data aggregation done.")
 
     return agg2, hourly_agg
+
+def aggregate_next_action_result(next_action):
+
+
+    # Instantiates a client
+    storage_client = storage.Client()
+    # The name for the new bucket
+    bucket = storage_client.bucket(bucket_name)
+    b = bucket.get_blob(FILENAME)
+    b.temporary_hold = True
+    b.patch()
+    pickle_load = b.download_as_bytes()
+    agg2 = pickle.loads(pickle_load)
+
+    last_item_index = agg2.index.max()
+
+    #TODO assert now +- 30 minutes
+
+    df_next_action = pd.DataFrame(next_action, index=[last_item_index])
+    agg2 = agg2.merge(df_next_action,
+                      left_index=True,
+                      right_index=True,
+                      how='left')
+
+    cloud_logger.info(agg2.tail(1).to_dict('records'))
+
+    cloud_logger.info("Uploading next_action result aggregation...")
+    pickle_dump = pickle.dumps(agg2)
+    b = bucket.get_blob(FILENAME)
+    b.temporary_hold = False
+    b.patch()
+    b.upload_from_string(data=pickle_dump, content_type='text/plain')
+
+    return agg2.tail(1)
