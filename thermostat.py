@@ -43,8 +43,9 @@ from thermal_comfort import ppd
 from thermostat_accumulate import thermostat_accumulate, get_accumulate
 from thermostat_aggregation import thermostat_aggregation, get_aggregation_metric_thermostat, aggregate_next_action_result
 
-cloud_logging_client = google.cloud.logging.Client()
-cloud_logging_client.setup_logging()
+if 'RUN_LOCAL' not in os.environ:
+    cloud_logging_client = google.cloud.logging.Client()
+    cloud_logging_client.setup_logging()
 
 # Instantiates a client
 storage_client = storage.Client()
@@ -276,7 +277,7 @@ def query(url_query, audience, method='GET', body=None):
     try:
         resp.json()
     except:
-        cloud_logger.error("Error while querying : {} - {}".format(
+        logging.error("Error while querying : {} - {}".format(
             url_query, resp.reason))
         pass
 
@@ -411,7 +412,7 @@ def digest(
             }
 
 
-    cloud_logger.info("digest - current date : {}".format(result["digest"]["date"]))
+    logging.info("digest - current date : {}".format(result["digest"]["date"]))
 
     return result["digest"]
 
@@ -427,7 +428,7 @@ def next_action():
     realtime_start = request.args.get('realtime_start', None)
     realtime_end = request.args.get('realtime_end', None)
 
-    cloud_logger.info("Calling MPC model...")
+    logging.info("Calling MPC model...")
     body = digest(hourly_start, hourly_end, realtime_start, realtime_end)
     url_query = url_gnu_rl + '/mpc/'
     resp = query(url_query, url_gnu_rl, 'POST', body)
@@ -454,8 +455,8 @@ def next_action():
 
 
 
-    cloud_logger.info("Next Action Result : {}".format(resp.json()))
-    cloud_logger.info("NextAction_Setpoint:{}".format(
+    logging.info("Next Action Result : {}".format(resp.json()))
+    logging.info("NextAction_Setpoint:{}".format(
         resp.json()['sat_stpt']))
 
     h_d = heating_decision(resp.json())
