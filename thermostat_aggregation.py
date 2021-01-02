@@ -348,6 +348,7 @@ def get_aggregation_metric_thermostat():
         del t_a['stove_exhaust_temp']
         del t_a['location']
         del t_a['Coil Power']
+
         #agg = pd.merge_asof(t_a, stove, left_on='dt', right_on='dt', direction="nearest")
         agg = pd.merge_asof(t_a, stove, left_index = True, right_index = True, direction="nearest")
 
@@ -421,7 +422,6 @@ def get_aggregation_metric_thermostat():
 
 def aggregate_next_action_result(next_action):
 
-
     # Instantiates a client
     storage_client = storage.Client()
     # The name for the new bucket
@@ -437,10 +437,8 @@ def aggregate_next_action_result(next_action):
     #TODO assert now +- 30 minutes
 
     df_next_action = pd.DataFrame(next_action, index=[last_item_index])
-    agg2 = agg2.merge(df_next_action,
-                      left_index=True,
-                      right_index=True,
-                      how='left')
+    agg2.update(df_next_action)
+
 
     cloud_logger.info(agg2.tail(1).to_dict('records'))
 
