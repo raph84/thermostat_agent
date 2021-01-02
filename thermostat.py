@@ -21,6 +21,7 @@ import google.auth
 from google.auth.transport.requests import Request
 import google.cloud.logging
 from google.cloud.logging.handlers import CloudLoggingHandler, setup_logging
+from google.cloud.logging.resource import Resource
 import base64
 import copy
 import requests
