@@ -32,6 +32,7 @@ import iso8601
 import re
 import numpy as np
 from itertools import chain
+import sys
 
 
 from utils import utcnow, ceil_dt, get_tz, get_utc_tz
@@ -48,6 +49,16 @@ if 'RUN_LOCAL' not in os.environ:
     cloud_logging_client = google.cloud.logging.Client()
     cloud_logging_client.setup_logging(resource=Resource("cloud_run_revision",
                             labels={'service_name': "thermostat-agent"}))
+else:
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    root.addHandler(handler)
 
 # Instantiates a client
 storage_client = storage.Client()
@@ -405,6 +416,8 @@ def digest(
     current = agg2.tail(1).to_dict('records')[0]
     disturbances = agg2.drop(agg2.tail(1).index).tail(14)
     disturbances = disturbances.append(hourly)
+
+    assert()
 
     result = {"digest": {
                     "current": current,

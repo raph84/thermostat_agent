@@ -383,7 +383,6 @@ def get_aggregation_metric_thermostat():
 
         dup_agg2 = agg2.index.duplicated().sum()
         if dup_agg2 > 0:
-            print("Duplicate agg_x : {}".format(dup_agg2))
             cloud_logger.warning("Duplicate agg_x : {}".format(dup_agg2))
 
         cloud_logger.info("Uploading aggregation results...")
@@ -408,11 +407,15 @@ def get_aggregation_metric_thermostat():
     hourly_agg['Occupancy Flag'] = False
     #del hourly_agg['dt']
 
+    logging.info("Number of hourly forecast items (should be at least 12) : {}".format(len(hourly_agg)))
 
     agg2.interpolate(limit=6, inplace=True)
 
     nan_agg2 = agg2.isnull().sum()
     nan_hourly = hourly_agg.isnull().sum()
+
+    if nan_agg2 > 0:
+        logging.warning("Null values in data aggregation : {}".format(nan_agg2))
 
     #agg2 = agg2.append(hourly_agg)
 
