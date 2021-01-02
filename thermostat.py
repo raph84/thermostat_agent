@@ -43,6 +43,8 @@ from thermal_comfort import ppd
 from thermostat_accumulate import thermostat_accumulate, get_accumulate
 from thermostat_aggregation import thermostat_aggregation, get_aggregation_metric_thermostat, aggregate_next_action_result
 
+cloud_logging_client = google.cloud.logging.Client()
+cloud_logging_client.setup_logging()
 
 # Instantiates a client
 storage_client = storage.Client()
@@ -65,8 +67,6 @@ app.register_blueprint(thermal_comfort, url_prefix="/thermal_comfort")
 app.register_blueprint(thermostat_accumulate, url_prefix="/")
 app.register_blueprint(thermostat_aggregation, url_prefix="/")
 
-
-cloud_logger = logging
 
 
 def create_file(payload, filename):
