@@ -44,10 +44,10 @@ from thermal_comfort import ppd
 from thermostat_accumulate import thermostat_accumulate, get_accumulate
 from thermostat_aggregation import thermostat_aggregation, get_aggregation_metric_thermostat, aggregate_next_action_result
 
-#if 'RUN_LOCAL' not in os.environ:
+if 'RUN_LOCAL' not in os.environ:
     cloud_logging_client = google.cloud.logging.Client()
     cloud_logging_client.setup_logging(resource=Resource("cloud_run_revision",
-                          labels={'service_name': "thermostat-agent"}))
+                            labels={'service_name': "thermostat-agent"}))
 
 # Instantiates a client
 storage_client = storage.Client()
