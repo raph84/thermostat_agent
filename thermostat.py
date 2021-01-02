@@ -46,12 +46,8 @@ from thermostat_aggregation import thermostat_aggregation, get_aggregation_metri
 
 if 'RUN_LOCAL' not in os.environ:
     cloud_logging_client = google.cloud.logging.Client()
-    handler = CloudLoggingHandler(
-        cloud_logging_client,
-        resource=Resource("cloud_run_revision",
-                          labels={'service_name': "thermostat-agent"}))
-
-    cloud_logging_client.setup_logging(handler)
+    cloud_logging_client.setup_logging(resource=Resource("cloud_run_revision",
+                          labels={'service_name': "thermostat-agent"})))
 
 # Instantiates a client
 storage_client = storage.Client()
