@@ -54,28 +54,30 @@ def aggregator(blob_list, date_function, value_function, date_select_function, e
     aggregation = pd.DataFrame()
 
     for m in blob_list:
+        logging.debug("Downloading {}".format(m.name))
         metric_json = get_metric_from_bucket(m)
-        #print(m.name)
-        for item in metric_json:
+        logging.debug("Importing {} items...".format(len(metric_json)))
+        if len(metric_json) > 0:
+            for item in metric_json:
 
-            #need data from filename
-            if m.name.startswith('environment_sensor_basement-'):
-                item['location'] = 'house.basement'
-                str_date = m.name.replace('environment_sensor_basement-','')
-                item['dt'] = parse_date(str_date)
+                #need data from filename
+                if m.name.startswith('environment_sensor_basement-'):
+                    item['location'] = 'house.basement'
+                    str_date = m.name.replace('environment_sensor_basement-','')
+                    item['dt'] = parse_date(str_date)
 
-            date_function(item)
-            metric_dict = value_function(item)
+                date_function(item)
+                metric_dict = value_function(item)
 
-            select, end = date_select_function(metric_dict['dt'], end_date, start_date)
-            if select:
-                df = pd.DataFrame(metric_dict, index=[metric_dict['dt']])
-                aggregation = aggregation.append(df)
+                select, end = date_select_function(metric_dict['dt'], end_date, start_date)
+                if select:
+                    df = pd.DataFrame(metric_dict, index=[metric_dict['dt']])
+                    aggregation = aggregation.append(df)
 
+                if end:
+                    break
             if end:
                 break
-        if end:
-            break
 
     if 'dt' in aggregation:
         aggregation.set_index('dt', inplace=True)
@@ -310,7 +312,7 @@ def get_aggregation_metric_thermostat():
     end_date = utc_to_toronto(agg2.index.max().to_pydatetime())
     #end_date = parse_date("2020-12-30T08:43:00-0500")
 
-    cloud_logger.info("Downloading latest thermostat metrics...")
+    cloud_logger.info("Downloading latest thermostat metrics back to {}...".format(end_date.isoformat()))
     metric_list = list(storage_client.list_blobs(bucket_name, prefix='thermostat'))
     metric_list.reverse()
     thermostat_agg = aggregator(metric_list, date_function_thermostat, value_function_thermostat, date_selection_realtime, end_date)
@@ -414,10 +416,9 @@ def get_aggregation_metric_thermostat():
     nan_agg2 = agg2.isnull().sum()
     nan_hourly = hourly_agg.isnull().sum()
 
-    if nan_agg2 > 0:
-        logging.warning("Null values in data aggregation : {}".format(nan_agg2))
-
-    #agg2 = agg2.append(hourly_agg)
+    if len(nan_agg2) > 0:
+        logging.warning("Null values in data aggregation : {}".format(
+            len(nan_agg2)))
 
     cloud_logger.info("Data aggregation done.")
 

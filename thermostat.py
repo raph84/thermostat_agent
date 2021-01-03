@@ -51,10 +51,10 @@ if 'RUN_LOCAL' not in os.environ:
                             labels={'service_name': "thermostat-agent"}))
 else:
     root = logging.getLogger()
-    root.setLevel(logging.INFO)
+    root.setLevel(logging.DEBUG)
 
     handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.INFO)
+    handler.setLevel(logging.DEBUG)
     formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
@@ -417,7 +417,7 @@ def digest(
     disturbances = agg2.drop(agg2.tail(1).index).tail(14)
     disturbances = disturbances.append(hourly)
 
-    assert()
+    #assert()
 
     result = {"digest": {
                     "current": current,
