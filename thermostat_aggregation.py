@@ -264,15 +264,10 @@ def request_get_aggregation():
         "hourly": hourly.to_dict('records')
     }
 
-def motion_df_resample(agg):
-    #end_index = agg.index.max()
-    #start_index = agg.index[agg.index.searchsorted(end_index - pd.Timedelta(value=3, unit='hours'))]
-    #print(start_index)
-    #print(end_index)
-    #agg_motion = agg.copy()[start_index:end_index]
-    agg_motion = agg
+def motion_df_resample(agg, agg2):
 
-    m = agg_motion.copy(deep=True)[['motion']]
+
+    m = agg.copy(deep=True)[['motion']]
     m['Occupancy Flag'] = m['motion']
     del m['motion']
     m['Occupancy Flag'] = m['Occupancy Flag'].apply(lambda x: 1 if x else 0)
@@ -285,8 +280,23 @@ def motion_df_resample(agg):
     m['Occupancy Flag'] = m['Occupancy Flag'].ewm(halflife='6Min',
                                                     times=m.index).mean()
     m = m[['Occupancy Flag']].resample('15min').sum()
+
+    agg2_quantile = agg2.copy(deep=True)[['Occupancy Flag']]
+    agg2_quantile = agg2_quantile.append(m)
+    end_index = agg2_quantile.index.max()
+    start_index = agg2_quantile.index[agg2_quantile.index.searchsorted(
+        end_index - pd.Timedelta(value=3, unit='hours'))]
+    logging.info(
+        "Evaluate motion threshold quantile with subset from {} to {}.".format(
+            start_index.to_pydatetime().isoformat(),
+            end_index.to_pydatetime().isoformat()))
+    agg2_quantile = agg2_quantile[start_index:end_index][[
+        'Occupancy Flag'
+    ]]
+
+
     # Values bellow 50 quantile will be False
-    m['quantile'] = m['Occupancy Flag'].quantile(q=0.50)
+    m['quantile'] = agg2_quantile['Occupancy Flag'].quantile(q=0.50)
     m['Occupancy Flag'] = m.apply(
         lambda x: True if x['Occupancy Flag'] > x['quantile'] else False,
         axis=1)
@@ -341,6 +351,9 @@ def get_aggregation_metric_thermostat():
                                   value_function_climacell,
                                   date_selection_realtime,
                                   end_date - timedelta(hours=1))
+
+        # TODO: check NaN from climacell
+
         rename_climacell_columns(realtime_agg)
 
 
@@ -371,7 +384,7 @@ def get_aggregation_metric_thermostat():
         print("Duplicate agg_x : {}".format(agg_x.index.duplicated().sum()))
 
         ##
-        m = motion_df_resample(agg)
+        m = motion_df_resample(agg,agg2)
         ##
 
         agg_x = agg_x.merge(m, left_index=True, right_index=True)
@@ -387,6 +400,11 @@ def get_aggregation_metric_thermostat():
         dup_agg2 = agg2.index.duplicated().sum()
         if dup_agg2 > 0:
             cloud_logger.warning("Duplicate agg_x : {}".format(dup_agg2))
+            dup_agg2 = agg2.copy(deep=True)
+            dup_agg2['dup'] = dup_agg2.index.duplicated(keep=False)
+            dup_agg2 = dup_agg2[dup_agg2['dup']]
+            dup_agg2.sort_index(inplace=True)
+            logging.info(dup_agg2.to_dict('records'))
 
         cloud_logger.info("Uploading aggregation results...")
         pickle_dump = pickle.dumps(agg2)
