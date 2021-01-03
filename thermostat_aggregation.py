@@ -409,7 +409,10 @@ def get_aggregation_metric_thermostat():
     hourly_agg['Occupancy Flag'] = False
     #del hourly_agg['dt']
 
-    logging.info("Number of hourly forecast items (should be at least 12) : {}".format(len(hourly_agg)))
+    if len(hourly_agg) >= 12:
+        logging.info("Number of hourly forecast items (should be at least 12) : {}".format(len(hourly_agg)))
+    else:
+        logging.error("Not enought hourly forecast : {}. MPC model will likely fail.")
 
     agg2.interpolate(limit=6, inplace=True)
 
