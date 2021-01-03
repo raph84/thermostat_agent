@@ -267,8 +267,8 @@ def request_get_aggregation():
 def motion_df_resample(agg):
     #end_index = agg.index.max()
     #start_index = agg.index[agg.index.searchsorted(end_index - pd.Timedelta(value=3, unit='hours'))]
-    print(start_index)
-    print(end_index)
+    #print(start_index)
+    #print(end_index)
     #agg_motion = agg.copy()[start_index:end_index]
     agg_motion = agg
 
