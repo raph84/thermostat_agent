@@ -265,11 +265,12 @@ def request_get_aggregation():
     }
 
 def motion_df_resample(agg):
-    end_index = agg.index.max()
-    start_index = agg.index[agg.index.searchsorted(end_index - pd.Timedelta(value=3, unit='hours'))]
+    #end_index = agg.index.max()
+    #start_index = agg.index[agg.index.searchsorted(end_index - pd.Timedelta(value=3, unit='hours'))]
     print(start_index)
     print(end_index)
-    agg_motion = agg.copy()[start_index:end_index]
+    #agg_motion = agg.copy()[start_index:end_index]
+    agg_motion = agg
 
     m = agg_motion.copy(deep=True)[['motion']]
     m['Occupancy Flag'] = m['motion']
@@ -322,7 +323,7 @@ def get_aggregation_metric_thermostat():
     end_date = utc_to_toronto(thermostat_agg.index.min().to_pydatetime())
 
     if len(thermostat_agg) > 0:
-        cloud_logger.info("New thermostat metric to aggregate : {}".format(thermostat_agg.index.min()))
+        cloud_logger.info("New thermostat metric to aggregate back to : {}".format(thermostat_agg.index.min()))
 
         cloud_logger.info("Downloading latest basement metrics...")
         basement_list = list(storage_client.list_blobs(bucket, prefix='environment_sensor_basement-'))
