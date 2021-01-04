@@ -264,7 +264,7 @@ def request_get_aggregation():
         "hourly": hourly.to_dict('records')
     }
 
-def motion_df_resample(agg, agg2):
+def motion_df_resample(agg):
 
 
     m = agg.copy(deep=True)[['motion']]
@@ -277,26 +277,34 @@ def motion_df_resample(agg, agg2):
                             ) / (m['Occupancy Flag'].max() -
                                 m['Occupancy Flag'].min())
     # Exponential decay
+    x_item = {}
+    for x in range(12):
+        max = m.index.max()
+        next_item = max + pd.Timedelta(value=15, unit='minutes')
+        m = m.append(pd.DataFrame(data=x_item, index=[next_item]))
+
+
     m['Occupancy Flag'] = m['Occupancy Flag'].ewm(halflife='6Min',
                                                     times=m.index).mean()
+    agg_quantile = m.copy(deep=True)[['Occupancy Flag']]
     m = m[['Occupancy Flag']].resample('15min').sum()
 
-    agg2_quantile = agg2.copy(deep=True)[['Occupancy Flag']]
-    agg2_quantile = agg2_quantile.append(m)
-    end_index = agg2_quantile.index.max()
-    start_index = agg2_quantile.index[agg2_quantile.index.searchsorted(
-        end_index - pd.Timedelta(value=3, unit='hours'))]
+
+    start_index = agg_quantile.index.min()
+    end_index = agg_quantile.index[agg_quantile.index.searchsorted(
+        start_index + pd.Timedelta(value=3, unit='hours'))]
     logging.info(
         "Evaluate motion threshold quantile with subset from {} to {}.".format(
             start_index.to_pydatetime().isoformat(),
             end_index.to_pydatetime().isoformat()))
-    agg2_quantile = agg2_quantile[start_index:end_index][[
+    agg_quantile = agg_quantile[start_index:end_index][[
         'Occupancy Flag'
     ]]
 
+    # TODO : Rolling quantile on the whole dataset
 
     # Values bellow 50 quantile will be False
-    m['quantile'] = agg2_quantile['Occupancy Flag'].quantile(q=0.50)
+    m['quantile'] = agg_quantile['Occupancy Flag'].quantile(q=0.75)
     m['Occupancy Flag'] = m.apply(
         lambda x: True if x['Occupancy Flag'] > x['quantile'] else False,
         axis=1)
@@ -321,16 +329,23 @@ def get_aggregation_metric_thermostat():
     #agg2 = pd.DataFrame()
 
     end_date = utc_to_toronto(agg2.index.max().to_pydatetime())
+    end_date_motion = end_date - timedelta(hours=3)
     #end_date = parse_date("2020-12-30T08:43:00-0500")
 
     cloud_logger.info("Downloading latest thermostat metrics back to {}...".format(end_date.isoformat()))
     metric_list = list(storage_client.list_blobs(bucket_name, prefix='thermostat'))
     metric_list.reverse()
-    thermostat_agg = aggregator(metric_list, date_function_thermostat, value_function_thermostat, date_selection_realtime, end_date)
+    thermostat_agg = aggregator(metric_list, date_function_thermostat,
+                                value_function_thermostat,
+                                date_selection_realtime, end_date_motion)
     thermostat_agg.rename(columns={'temperature': 'Indoor Temp.'}, inplace=True)
 
 
-    end_date = utc_to_toronto(thermostat_agg.index.min().to_pydatetime())
+    #end_date = utc_to_toronto(thermostat_agg.index.min().to_pydatetime())
+    end_date = thermostat_agg.index[thermostat_agg.index.searchsorted(end_date)]
+
+    thermostat_agg_motion = thermostat_agg.copy(deep=True)
+    thermostat_agg = thermostat_agg[end_date:thermostat_agg.index.max()]
 
     if len(thermostat_agg) > 0:
         cloud_logger.info("New thermostat metric to aggregate back to : {}".format(thermostat_agg.index.min()))
@@ -384,7 +399,7 @@ def get_aggregation_metric_thermostat():
         print("Duplicate agg_x : {}".format(agg_x.index.duplicated().sum()))
 
         ##
-        m = motion_df_resample(agg,agg2)
+        m = motion_df_resample(thermostat_agg_motion)
         ##
 
         agg_x = agg_x.merge(m, left_index=True, right_index=True)
