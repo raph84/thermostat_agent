@@ -420,6 +420,9 @@ def get_aggregation_metric_thermostat():
             dup_agg2 = dup_agg2[dup_agg2['dup']]
             dup_agg2.sort_index(inplace=True)
             logging.info(dup_agg2.to_dict('records'))
+            agg2 = agg2[~agg2.index.duplicated(keep='first')]
+
+
 
         cloud_logger.info("Uploading aggregation results...")
         pickle_dump = pickle.dumps(agg2)
@@ -479,7 +482,7 @@ def aggregate_next_action_result(next_action):
 
     df_next_action = pd.DataFrame(next_action, index=[last_item_index])
     agg2.update(df_next_action)
-
+    agg2 = agg2[agg2['heating_state'].notna()]
 
     cloud_logger.info(agg2.tail(1).to_dict('records'))
 
