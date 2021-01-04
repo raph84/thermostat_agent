@@ -504,7 +504,7 @@ def aggregate_next_action_result(next_action):
 
     df_next_action = pd.DataFrame(next_action, index=[last_item_index])
     agg2.update(df_next_action)
-    agg2 = agg2[agg2['heating_state'].notna()]
+    #agg2 = agg2[agg2['heating_state'].notna()]
 
     cloud_logger.info(agg2.tail(1).to_dict('records'))
 
