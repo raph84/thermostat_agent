@@ -394,9 +394,10 @@ def digest(
         realtime_start=None,  #TODO remove
         realtime_end=None,
         hourly_last=1,
-        realtime_last=14,):
+        realtime_last=14,
+        skip_agg = False):
 
-    agg2, hourly = get_aggregation_metric_thermostat()
+    agg2, hourly = get_aggregation_metric_thermostat(skip_agg)
     agg2 = agg2.replace({np.nan: None})
     # agg2['dt'] = agg2['dt'].apply(
     #     lambda x: utc_to_toronto(x.to_pydatetime()).isoformat())
@@ -414,7 +415,8 @@ def digest(
     nan_hourly = hourly.isnull().sum()
 
     current = agg2.tail(1).to_dict('records')[0]
-    disturbances = agg2.drop(agg2.tail(1).index).tail(14)
+    #disturbances = agg2.drop(agg2.tail(1).index).tail(14)
+    disturbances = agg2.tail(14)
     disturbances = disturbances.append(hourly)
 
     #assert()
@@ -442,9 +444,10 @@ def next_action():
     hourly_end = request.args.get('hourly_end', None)
     realtime_start = request.args.get('realtime_start', None)
     realtime_end = request.args.get('realtime_end', None)
+    skip_agg = bool(request.args.get('skip_agg', False))
 
     logging.info("Calling MPC model...")
-    body = digest(hourly_start, hourly_end, realtime_start, realtime_end)
+    body = digest(hourly_start, hourly_end, realtime_start, realtime_end, skip_agg=skip_agg)
     url_query = url_gnu_rl + '/mpc/'
     resp = query(url_query, url_gnu_rl, 'POST', body)
 
@@ -481,8 +484,6 @@ def next_action():
     aggregate_next_action_result(next_action_result)
 
     return next_action_result
-
-
 
 
 
