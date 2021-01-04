@@ -74,7 +74,7 @@ provider "docker" {
     username = "oauth2accesstoken"
     password = data.google_client_config.default.access_token
   }
-  #host = "npipe:////.//pipe//docker_engine"
+  host = "npipe:////.//pipe//docker_engine"
 }
 
 data "docker_registry_image" "thermostat-agent" {
@@ -118,7 +118,7 @@ resource "google_cloud_run_service" "default" {
 
         env {
           name  = "ACTION_THRESHOLD"
-          value = "1.0"
+          value = "0.75"
         }
 
         ports {

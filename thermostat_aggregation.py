@@ -439,7 +439,7 @@ def get_aggregation_metric_thermostat():
 
 
     hourly_start = agg2.index.max().to_pydatetime() - timedelta(minutes=60)
-    hourly_end = hourly_start + timedelta(hours=5)
+    hourly_end = hourly_start + timedelta(hours=7)
 
     hourly_list = list(storage_client.list_blobs(bucket_climacell, prefix='hourly'))
     hourly_list.reverse()
@@ -450,6 +450,7 @@ def get_aggregation_metric_thermostat():
     hourly_agg = hourly_agg.resample('15Min', closed='right').interpolate(method='linear')
     hourly_agg = hourly_agg.merge(m, left_index=True, right_index=True)
     hourly_agg = hourly_agg.drop(index=agg2.index, errors='ignore')
+    hourly_agg = hourly_agg.head(12)
     #del hourly_agg['dt']
 
     if len(hourly_agg) >= 12:
