@@ -418,7 +418,9 @@ def digest(
     #disturbances = agg2.drop(agg2.tail(1).index).tail(14)
     disturbances = agg2.tail(14)
     disturbances = disturbances.append(hourly)
-
+    logging.info("Digest current date : {}".format(current['dt']))
+    logging.info("Disturbances items in digest result : {}".format('; '.join(
+        x.isoformat() for x in disturbances.index.to_pydatetime())))
     #assert()
 
     result = {"digest": {
@@ -446,9 +448,10 @@ def next_action():
     realtime_end = request.args.get('realtime_end', None)
     skip_agg = bool(request.args.get('skip_agg', False))
 
-    logging.info("Calling MPC model...")
+
     body = digest(hourly_start, hourly_end, realtime_start, realtime_end, skip_agg=skip_agg)
     url_query = url_gnu_rl + '/mpc/'
+    logging.info("Calling MPC model...")
     resp = query(url_query, url_gnu_rl, 'POST', body)
 
 
