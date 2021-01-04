@@ -7,7 +7,7 @@ import logging
 from flask import Blueprint
 
 from google.cloud import storage
-from yadt import parse_date, apply_tz_toronto, utc_to_toronto
+from yadt import parse_date, apply_tz_toronto, utc_to_toronto, utcnow
 from datetime import datetime, timedelta
 import pandas as pd
 import json
@@ -287,7 +287,7 @@ def motion_df_resample(agg):
     m['Occupancy Flag'] = m['Occupancy Flag'].ewm(halflife='6Min',
                                                     times=m.index).mean()
     agg_quantile = m.copy(deep=True)[['Occupancy Flag']]
-    m = m[['Occupancy Flag']].resample('15min').sum()
+    m = m[['Occupancy Flag']].resample('15min', closed='right').sum()
 
 
     start_index = agg_quantile.index.min()
@@ -326,7 +326,11 @@ def get_aggregation_metric_thermostat():
     pickle_load = b.download_as_bytes()
     agg2 = pickle.loads(pickle_load)
 
-    #agg2 = pd.DataFrame()
+    agg2_now = utcnow()
+    if agg2.index.max() > agg2_now:
+        # We might have new data to aggregate for this last 15 minutes.
+        agg2.drop(index=agg2.index.max())
+    
 
     end_date = utc_to_toronto(agg2.index.max().to_pydatetime())
     end_date_motion = end_date - timedelta(hours=3)
@@ -357,7 +361,7 @@ def get_aggregation_metric_thermostat():
                                   value_function_basement,
                                   date_selection_realtime,
                                   end_date - timedelta(hours=1))
-        basement_agg = basement_agg.resample('15Min').mean()
+        basement_agg = basement_agg.resample('15Min', closed='right').mean()
 
         cloud_logger.info("Downloading latest realtime weather...")
         realtime_list = list(storage_client.list_blobs(bucket_climacell, prefix='realtime'))
@@ -395,7 +399,7 @@ def get_aggregation_metric_thermostat():
                                 direction="nearest")
         #agg.set_index('dt', inplace=True)
         agg = agg[~agg.index.duplicated(keep='first')]
-        agg_x = agg.resample('15Min').mean()
+        agg_x = agg.resample('15Min', closed='right').mean()
         print("Duplicate agg_x : {}".format(agg_x.index.duplicated().sum()))
 
         ##
@@ -404,6 +408,7 @@ def get_aggregation_metric_thermostat():
 
         agg_x = agg_x.merge(m, left_index=True, right_index=True)
         agg_x = agg_x.merge(basement_agg, left_index=True, right_index=True)
+        agg_x = agg_x.drop(index=agg2.index, errors='ignore')
         #agg_x['dt'] = agg_x.index.values
         #agg_x['dt'] = agg_x['dt'].apply(lambda x: utc_to_toronto(x.to_pydatetime()).isoformat())
 
@@ -442,8 +447,9 @@ def get_aggregation_metric_thermostat():
     cloud_logger.info("Downloading latest hourly weather forecast...")
     hourly_agg = aggregator(hourly_list, date_function_climacell, value_function_climacell, date_selection_hourly, hourly_end, hourly_start)
     rename_climacell_columns(hourly_agg)
-    hourly_agg = hourly_agg.resample('15Min').interpolate(method='linear')
-    hourly_agg['Occupancy Flag'] = False
+    hourly_agg = hourly_agg.resample('15Min', closed='right').interpolate(method='linear')
+    hourly_agg = hourly_agg.merge(m, left_index=True, right_index=True)
+    hourly_agg = hourly_agg.drop(index=agg2.index, errors='ignore')
     #del hourly_agg['dt']
 
     if len(hourly_agg) >= 12:
@@ -451,7 +457,7 @@ def get_aggregation_metric_thermostat():
     else:
         logging.error("Not enought hourly forecast : {}. MPC model will likely fail.")
 
-    agg2.interpolate(limit=6, inplace=True)
+    #agg2.interpolate(limit=6, inplace=True)
 
     nan_agg2 = agg2.isnull().sum()
     nan_hourly = hourly_agg.isnull().sum()
