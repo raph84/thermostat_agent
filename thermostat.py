@@ -360,11 +360,13 @@ def digest():
     hourly_end = request.args.get('hourly_end', None)
     realtime_start = request.args.get('realtime_start', None)
     realtime_end = request.args.get('realtime_end', None)
+    skip_agg = request.args.get('skip_agg', False)
 
     return digest(hourly_start,
                     hourly_end,
                     realtime_start,
-                    realtime_end)
+                    realtime_end,
+                    skip_agg)
 
 def coil_power(stove_exhaust_temp):
     """ Deprecated
