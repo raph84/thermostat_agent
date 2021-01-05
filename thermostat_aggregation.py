@@ -287,7 +287,7 @@ def motion_df_resample(agg):
     m['Occupancy Flag'] = m['Occupancy Flag'].ewm(halflife='6Min',
                                                     times=m.index).mean()
     agg_quantile = m.copy(deep=True)[['Occupancy Flag']]
-    m = m[['Occupancy Flag']].resample('15min', closed='right').sum()
+    m = m[['Occupancy Flag']].resample('15min').sum()
 
 
     start_index = agg_quantile.index.min()
@@ -312,6 +312,19 @@ def motion_df_resample(agg):
 
     return m
 
+def validate_index_sequence(df):
+    delta = timedelta(minutes=15)
+    list_index = df.index.values.tolist()
+    last_index_item = list_index.pop()
+    validate = True
+    failed_sequence = []
+    for i in list_index:
+        if i - last_index_item == delta:
+            validate = False
+            failed_sequence.append(i)
+
+    return validate, failed_sequence
+
 def get_aggregation_metric_thermostat(skip_agg=False):
 
     # Instantiates a client
@@ -331,7 +344,9 @@ def get_aggregation_metric_thermostat(skip_agg=False):
         agg2_now = utcnow()
         if agg2.index.max() > agg2_now:
             # We might have new data to aggregate for this last 15 minutes.
+            logging.warning("")
             agg2.drop(index=agg2.index.max())
+
 
 
         end_date = utc_to_toronto(agg2.index.max().to_pydatetime())
@@ -363,7 +378,7 @@ def get_aggregation_metric_thermostat(skip_agg=False):
                                     value_function_basement,
                                     date_selection_realtime,
                                     end_date - timedelta(hours=1))
-            basement_agg = basement_agg.resample('15Min', closed='right').mean()
+            basement_agg = basement_agg.resample('15Min').mean()
 
             cloud_logger.info("Downloading latest realtime weather...")
             realtime_list = list(storage_client.list_blobs(bucket_climacell, prefix='realtime'))
@@ -373,8 +388,9 @@ def get_aggregation_metric_thermostat(skip_agg=False):
                                     date_selection_realtime,
                                     end_date - timedelta(hours=1))
 
-            # TODO: check NaN from climacell
             rename_climacell_columns(realtime_agg)
+            # TODO: check NaN from climacell
+
             realtime_agg.interpolate(limit=6, inplace=True)
 
             nan_realtime = realtime_agg.isnull().sum().sum()
@@ -404,7 +420,7 @@ def get_aggregation_metric_thermostat(skip_agg=False):
                                     direction="nearest")
             #agg.set_index('dt', inplace=True)
             agg = agg[~agg.index.duplicated(keep='first')]
-            agg_x = agg.resample('15Min', closed='right').mean()
+            agg_x = agg.resample('15Min').mean()
             print("Duplicate agg_x : {}".format(agg_x.index.duplicated().sum()))
 
             ##
@@ -457,7 +473,7 @@ def get_aggregation_metric_thermostat(skip_agg=False):
     #Sometime climacell has missing values
     hourly_agg.interpolate(limit=6, inplace=True)
 
-    hourly_agg = hourly_agg.resample('15Min', closed='right').interpolate(method='linear')
+    hourly_agg = hourly_agg.resample('15Min').interpolate(method='linear')
     if 'm' in locals():
         hourly_agg = hourly_agg.merge(m, left_index=True, right_index=True)
     else:
@@ -476,6 +492,10 @@ def get_aggregation_metric_thermostat(skip_agg=False):
     nan_agg2 = agg2.isnull().sum().sum()
     nan_hourly = hourly_agg.isnull().sum()
 
+    hourly_validate, hourly_failed_sequence = validate_index_sequence(hourly_agg)
+    agg2_validate, agg2_failed_sequence = validate_index_sequence(agg2)
+    assert hourly_validate, '; '.join(x.to_pydatetime().isoformat() for x in hourly_failed_sequence)
+    assert agg2_validate, '; '.join(x.to_pydatetime().isoformat() for x in agg2_failed_sequence)
 
     if nan_agg2 > 0:
         logging.error("Null values in data aggregation : {}".format(
