@@ -74,7 +74,7 @@ provider "docker" {
     username = "oauth2accesstoken"
     password = data.google_client_config.default.access_token
   }
-  #host = "npipe:////.//pipe//docker_engine"
+  host = "npipe:////.//pipe//docker_engine"
 }
 
 data "docker_registry_image" "thermostat-agent" {
@@ -209,7 +209,84 @@ resource "google_storage_bucket" "thermostat_metric_data" {
   project                     = "us-east4"
   storage_class               = "STANDARD"
   uniform_bucket_level_access = true
+
+  versioning {
+    enabled = true
+  }
 }
+
+
+resource "google_pubsub_topic" "thermostat_metric_storage" {
+  name = "thermostat_metric_storage"
+  labels = {
+    project = "thermostat"
+  }
+  message_storage_policy {
+    allowed_persistence_regions = [
+      "us-east4",
+    ]
+  }
+}
+
+resource "google_storage_notification" "notification" {
+  bucket         = google_storage_bucket.thermostat_metric_data.name
+  payload_format = "JSON_API_V1"
+  topic          = google_pubsub_topic.thermostat_metric_storage.id
+  event_types    = ["OBJECT_FINALIZE", "OBJECT_METADATA_UPDATE"]
+  # custom_attributes = {
+  #   new-attribute = "new-attribute-value"
+  # }
+  depends_on = [google_pubsub_topic_iam_binding.binding]
+}
+
+// Enable notifications by giving the correct IAM permission to the unique service account.
+
+data "google_storage_project_service_account" "gcs_account" {
+}
+
+resource "google_pubsub_topic_iam_binding" "binding" {
+  topic   = google_pubsub_topic.thermostat_metric_storage.id
+  role    = "roles/pubsub.publisher"
+  members = ["serviceAccount:${data.google_storage_project_service_account.gcs_account.email_address}"]
+}
+
+// End enabling notifications
+
+
+
+resource "google_pubsub_subscription" "thermostat_metric_subsciption" {
+  name  = "thermostat_metric_subsciption"
+  topic = google_pubsub_topic.thermostat_metric_storage.name
+
+  labels = {
+    project = "thermostat"
+  }
+
+  # 20 minutes
+  message_retention_duration = "604800s"
+  retain_acked_messages      = false
+
+  ack_deadline_seconds = 20
+
+  # expiration_policy {
+  #   ttl = "300000.5s"
+  # }
+  retry_policy {
+    minimum_backoff = "10s"
+  }
+
+  enable_message_ordering    = true
+}
+
+resource "google_pubsub_subscription_iam_binding" "editor" {
+  subscription = google_pubsub_subscription.thermostat_metric_subsciption.name
+  role         = "roles/pubsub.subscriber"
+  members = [
+    join(":", ["serviceAccount", google_service_account.thermostat-agent.email]),
+  ]
+}
+
+
 
 resource "google_storage_bucket_iam_binding" "thermostat_metric_data-ObjectCreator" {
   bucket = google_storage_bucket.thermostat_metric_data.name
