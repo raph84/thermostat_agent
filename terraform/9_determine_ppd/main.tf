@@ -375,7 +375,7 @@ resource "google_project_iam_member" "jobUser" {
 resource "google_cloud_scheduler_job" "job" {
   name             = "thermostat-next-action"
   description      = "Determine next action and push it to thermostat"
-  schedule         = "*/15 * * * *"
+  schedule         = "5,20,35,50 * * * *"
   time_zone        = "Etc/UTC"
   attempt_deadline = "320s"
   project = local.project_id

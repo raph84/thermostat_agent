@@ -418,6 +418,7 @@ def digest(
     #disturbances = agg2.drop(agg2.tail(1).index).tail(14)
     disturbances = agg2.tail(14)
     disturbances = disturbances.append(hourly)
+
     logging.info("Digest current date : {}".format(current['dt']))
     logging.info("Disturbances items in digest result : {}".format('; '.join(
         x.isoformat() for x in disturbances.index.to_pydatetime())))
@@ -446,7 +447,11 @@ def next_action():
     hourly_end = request.args.get('hourly_end', None)
     realtime_start = request.args.get('realtime_start', None)
     realtime_end = request.args.get('realtime_end', None)
-    skip_agg = bool(request.args.get('skip_agg', False))
+    skip_agg = request.args.get('skip_agg', False)
+    if skip_agg == "True":
+        skip_agg = True
+    else:
+        skip_agg = False
 
 
     body = digest(hourly_start, hourly_end, realtime_start, realtime_end, skip_agg=skip_agg)
