@@ -7,12 +7,15 @@ import logging
 from flask import Blueprint
 
 from google.cloud import storage
+from google.cloud import pubsub_v1
+from google.api_core import retry
 from yadt import parse_date, apply_tz_toronto, utc_to_toronto, utcnow
 from datetime import datetime, timedelta
 import pandas as pd
 import json
 import pickle
 import numpy as np
+from thermostat_aggregation_utils import *
 
 thermostat_aggregation = Blueprint('thermostat_aggregation', __name__)
 
@@ -23,164 +26,25 @@ FILENAME = "aggregate.p"
 bucket_name = "thermostat_metric_data"
 bucket_climacell = "climacell_data"
 
+project_id = os.environ['PROJECT_ID']
+subscription_id = 'thermostat_metric_subsciption'
+
 
 def get_metric_from_bucket(blob):
 
-    last_json = []
-
-    try:
-        json_str = blob.download_as_bytes()
-        j = json.loads(json_str)
-        #j['dt'] = apply_tz_toronto(datetime.fromtimestamp(j['timestamp']))
-
-        #if len(list(j.keys())) > 0:
-        #    if 'sound' in j.keys():
-        #        del j['sound']
-        #    if 'timestamp'
-        #    del j['timestamp']
-        if isinstance(j, list):
-            for item in j:
-                last_json.append(item)
-        else:
-            last_json.append(j)
-
-    except json.JSONDecodeError:
-        pass
+    json_str = blob.download_as_bytes()
+    last_json = metric_str_to_json(json_str)
 
     return last_json
 
 
-def aggregator(blob_list, date_function, value_function, date_select_function, end_date, start_date=None):
-    aggregation = pd.DataFrame()
 
-    for m in blob_list:
-        logging.debug("Downloading {}".format(m.name))
-        metric_json = get_metric_from_bucket(m)
-        logging.debug("Importing {} items...".format(len(metric_json)))
-        if len(metric_json) > 0:
-            for item in metric_json:
-
-                #need data from filename
-                if m.name.startswith('environment_sensor_basement-'):
-                    item['location'] = 'house.basement'
-                    str_date = m.name.replace('environment_sensor_basement-','')
-                    item['dt'] = parse_date(str_date)
-
-                date_function(item)
-                metric_dict = value_function(item)
-
-                select, end = date_select_function(metric_dict['dt'], end_date, start_date)
-                if select:
-                    df = pd.DataFrame(metric_dict, index=[metric_dict['dt']])
-                    aggregation = aggregation.append(df)
-
-                if end:
-                    break
-            if end:
-                break
-
-    if 'dt' in aggregation:
-        aggregation.set_index('dt', inplace=True)
-        aggregation.sort_index(inplace=True)
-
-    return aggregation
-
-
-def coil_power(stove_exhaust_temp):
-    max_coil_power = 10613.943465
-    min_coil_power = 0.0
-    max_stove_exhaust_temp = 130.0
-
-    if stove_exhaust_temp > 30:
-        coil_power = (stove_exhaust_temp *
-                      max_coil_power) / max_stove_exhaust_temp
-    else:
-        coil_power = 0
-
-    return coil_power
-
-
-def date_selection_realtime(dt, end_date, start_date):
-    selection_end = end_date
-
-    select = True
-    end = False
-    if dt > selection_end:
-        #print(dt)
-        select = False
-        end = True
-
-    return select, end
-
-def get_set_point(date):
-    if date.hour >= 21 or (date.hour <= 5 and date.minute >= 30):
-        return 18
-    else:
-        return 22
-
-
-def value_function_thermostat(i):
-
-
-    if i['location'] == 'house.basement.stove':
-        i['Coil Power'] = coil_power(i['stove_exhaust_temp'])
-    else:
-        if i['location'] == 'house.kitchen':
-            ppd_value = ppd(tdb=i['temperature'],
-                            tr=i['temperature'],
-                            rh=i['humidity'])
-
-            i['PPD'] = ppd_value['ppd']
-            i["Indoor Temp. Setpoint"] = get_set_point(i['dt'])
-
-            i['MA Temp.'] = 18
-            i['Htg SP'] = 22
-
-    if 'sound' in i.keys():
-        del i['sound']
-    if 'timestamp' in i.keys():
-        del i['timestamp']
-    return i
-
-
-def date_function_thermostat(i):
-    i['dt'] = apply_tz_toronto(datetime.fromtimestamp(i['timestamp']))
 
 
 def create_file(payload, filename):
     blob = bucket.blob(filename)
 
     blob.upload_from_string(data=payload, content_type='text/plain')
-
-
-def date_function_climacell(i):
-    #print(i)
-    i['dt'] = parse_date(i['observation_time']['value'])
-    del i['observation_time']
-    #"observation_time": {"value": "2020-10-18T21:15:02.777Z"}}¸
-
-
-def value_function_climacell(i):
-    #print(i)
-    field = [
-        'temp', 'humidity', 'wind_speed', 'wind_direction',
-        'surface_shortwave_radiation'
-    ]
-    if 'observation_time' in i.keys():
-        field.append('observation_time')
-    else:
-        field.append('dt')
-
-    value_dict = {}
-
-    for f in field:
-        if f != 'dt':
-            value_dict[f] = i[f]['value']
-        else:
-            value_dict[f] = i[f]
-
-    return value_dict
-
 
 def rename_climacell_columns(data):
     data.rename(columns={
@@ -191,21 +55,6 @@ def rename_climacell_columns(data):
         'wind_direction': 'Wind Direction'
     },
                 inplace=True)
-
-
-def date_selection_hourly(dt, hourly_end, hourly_start):
-    select = False
-    end = False
-
-
-    if dt <= hourly_end and dt >= hourly_start:
-        select = True
-
-    if dt > hourly_end:
-        end = True
-
-    return select, end
-
 
 def retrieve_hourly():
     hourly_start = agg2.index.max().to_pydatetime()
@@ -221,36 +70,6 @@ def retrieve_hourly():
                             value_function_climacell, date_selection_hourly)
     rename_climacell_columns(hourly_agg)
     hourly_agg
-
-
-def date_selection_realtime(dt, end_date, start_date):
-    selection_end = end_date
-
-    select = True
-    end = False
-    if dt < selection_end:
-        #print(dt)
-        select = False
-        end = True
-
-    return select, end
-
-
-def value_function_basement(i):
-
-    i['temp_basement'] = i['temperature']
-    i["Sys Out Temp."] = i['temp_basement']
-    del i['temperature']
-    del i['original_payload']
-
-    return i
-
-
-def date_function_basement(i):
-    return
-
-
-
 
 @thermostat_aggregation.route('/aggregation/', methods=['GET'])
 def request_get_aggregation():
@@ -536,3 +355,121 @@ def aggregate_next_action_result(next_action):
     b.upload_from_string(data=pickle_dump, content_type='text/plain')
 
     return agg2.tail(1)
+
+
+def get_file_from_bucket(filename):
+    # Instantiates a client
+    storage_client = storage.Client()
+    # The name for the new bucket
+    bucket = storage_client.bucket(bucket_name)
+
+    b = bucket.get_blob(filename)
+    data = b.download_as_bytes()
+
+    return data
+
+
+@thermostat_aggregation.route('/pull-thermostat-metric/', methods=['POST'])
+def aggregate_metric_thermostat():
+
+
+
+    NUM_MESSAGES = 10
+
+    # Instantiates a client
+    storage_client = storage.Client()
+    # The name for the new bucket
+    bucket = storage_client.bucket(bucket_name)
+
+    blob_thermostat_metric_data = bucket.get_blob('_thermostat_metric_data.p')
+    blob_thermostat_metric_data.temporary_hold = True
+    blob_thermostat_metric_data.patch()
+    dump_dataframe = blob_thermostat_metric_data.download_as_bytes()
+    thermostat_dataframe = pickle.loads(dump_dataframe)
+
+    updates = 0
+    delta = timedelta(seconds=10)
+    start = utcnow() + timedelta(seconds=1)
+
+
+    while utcnow() - start < delta:
+
+        subscriber = pubsub_v1.SubscriberClient()
+        # The `subscription_path` method creates a fully qualified identifier
+        # in the form `projects/{project_id}/subscriptions/{subscription_id}`
+        subscription_path = subscriber.subscription_path(project_id,
+                                                        subscription_id)
+
+
+        # Wrap the subscriber in a 'with' block to automatically call close() to
+        # close the underlying gRPC channel when done.
+        with subscriber:
+
+            # The subscriber pulls a specific number of messages. The actual
+            # number of messages pulled may be smaller than max_messages.
+            response = subscriber.pull(
+                request={
+                    "subscription": subscription_path,
+                    "max_messages": NUM_MESSAGES
+                },
+                retry=retry.Retry(deadline=10),
+            )
+
+            ack_ids = []
+            for message in response.received_messages:
+
+                # Still receiving msg. Reset the timeout
+                start = utcnow() + timedelta(seconds=1)
+
+                if message.message.attributes[
+                        'eventType'] == 'OBJECT_FINALIZE' and (
+                            message.message.attributes['objectId'].startswith(
+                                'thermostat-')
+                            or message.message.attributes['objectId'].
+                            startswith('environment_sensor')):
+
+                    logging.info(f"Received {message.message.attributes['objectId']}.")
+                    blob = bucket.get_blob(message.message.attributes['objectId'])
+
+                    data = get_metric_from_bucket(blob)
+                    merge, thermostat_dataframe = aggregate_to_dataframe(
+                        blob.name, data, thermostat_dataframe)
+
+                    if merge :
+                        updates = updates + 1
+
+
+                    ack_ids.append(message.ack_id)
+
+                else:
+                    # Not the msg we are looking for
+                    logging.info(f"PASS - {message.message.attributes['objectId']}")
+                    ack_ids.append(message.ack_id)
+
+
+            if len(ack_ids) > 0 :
+                # Acknowledges the received messages so they will not be sent again.
+                subscriber.acknowledge(request={
+                    "subscription": subscription_path,
+                    "ack_ids": ack_ids
+                })
+
+            print(
+                f"Received and acknowledged {len(response.received_messages)} messages from {subscription_path}."
+            )
+
+    logging.info("Msg pulling done.")
+
+
+
+    logging.info("{} items have been added.".format(updates))
+    blob_thermostat_metric_data.temporary_hold = False
+    blob_thermostat_metric_data.patch()
+
+    if updates > 0:
+        thermostat_dataframe = thermostat_dataframe.sort_index()
+        logging.info("Saving thermostat_dataframe...")
+        pickle_dump = pickle.dumps(thermostat_dataframe)
+        blob_thermostat_metric_data.upload_from_string( data=pickle_dump, content_type='text/plain')
+
+    return ('Loaded {} metric(s).'.format(updates), 204)

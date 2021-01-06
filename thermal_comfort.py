@@ -1,28 +1,6 @@
-from flask import Blueprint
-import json
-from flask import current_app
-import os
-import logging
-
-from thermostat_accumulate import get_accumulate
-
 from pythermalcomfort.models import pmv_ppd
 from pythermalcomfort.psychrometrics import v_relative
 from pythermalcomfort.utilities import met_typical_tasks, clo_typical_ensembles
-
-thermal_comfort = Blueprint('thermal_comfort', __name__)
-
-
-
-cloud_logger = logging
-
-
-@thermal_comfort.route('/ppd/', methods=['GET'])
-def retrieve_ppd():
-
-    result = ppd()
-
-    return result
 
 
 def ppd(tdb=25,
@@ -65,7 +43,5 @@ def ppd(tdb=25,
         clo=clo,
         wme=0,
         standard="ISO")
-
-    cloud_logger.debug(results)
 
     return {"ppd": results['ppd']}

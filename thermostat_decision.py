@@ -4,7 +4,12 @@ import os
 import logging
 
 ACTION_THRESHOLD = float(os.environ.get('ACTION_THRESHOLD',0.75))
+DECISION = os.environ.get('DECISION', "")
 
+if DECISION == "True":
+    DECISION = True
+else:
+    DECISION = False
 
 cloud_logger = logging
 
@@ -37,9 +42,10 @@ def heating_decision(next_action):
         "Next action decision factor {}; Heating_state needs to be {}.".format(
             next_action['action'], config_dict['heating_state']))
 
-    config = update_config(config_dict, "thermostat1")
-    
-    
+    if DECISION:
+        config = update_config(config_dict, "thermostat1")
+
+
 
     return {
             "heating_state" : config_dict['heating_state'],

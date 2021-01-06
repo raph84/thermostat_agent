@@ -112,6 +112,11 @@ resource "google_cloud_run_service" "default" {
         }
 
         env {
+          name  = "DECISION"
+          value = "False"
+        }
+
+        env {
           name  = "LEVEL"
           value = "info"
         }

@@ -40,7 +40,6 @@ from yadt import scan_and_apply_tz, utc_to_toronto, apply_tz_toronto, parse_date
 
 from thermostat_iot_control import thermostat_iot_control
 from thermostat_decision import heating_decision
-from thermal_comfort import thermal_comfort
 from thermal_comfort import ppd
 from thermostat_accumulate import thermostat_accumulate, get_accumulate
 from thermostat_aggregation import thermostat_aggregation, get_aggregation_metric_thermostat, aggregate_next_action_result
@@ -51,7 +50,7 @@ if 'RUN_LOCAL' not in os.environ:
                             labels={'service_name': "thermostat-agent"}))
 else:
     root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
+    root.setLevel(logging.INFO)
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.DEBUG)
@@ -59,6 +58,15 @@ else:
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     root.addHandler(handler)
+
+
+DECISION = os.environ.get('DECISION', "")
+
+if DECISION == "True":
+    DECISION = True
+else:
+    DECISION = False
+
 
 # Instantiates a client
 storage_client = storage.Client()
@@ -77,9 +85,8 @@ FORMAT_DATE_DASH = "%Y%m%d-%H%M%S"
 app = Flask(__name__)
 app.config["DEBUG"] = True
 app.register_blueprint(thermostat_iot_control, url_prefix="/iot")
-app.register_blueprint(thermal_comfort, url_prefix="/thermal_comfort")
 app.register_blueprint(thermostat_accumulate, url_prefix="/")
-app.register_blueprint(thermostat_aggregation, url_prefix="/")
+app.register_blueprint(thermostat_aggregation, url_prefix="/aggregation")
 
 
 
@@ -159,10 +166,28 @@ def get_metric_from_bucket(last=0, pref='thermostat', last_file=None, first_file
 def get_metric_thermostat():
 
     last = request.args.get('last', 1)
+    gsutil = request.args.get('gsutil', '')
+    if gsutil == 'True':
+        gsutil = True
+    else:
+        False
 
-    last_json = metric_thermostat(last)
+    if gsutil:
+        last_json = metric_thermostat_gsutil()
+    else:
+        last_json = metric_thermostat(last)
 
     return last_json
+
+
+def metric_thermostat_gsutil():
+    result = 'gsutil cp '
+    metric_list = get_metric_list_from_bucket()
+    for m in metric_list:
+        result = result + 'gs://thermostat_metric_data/' + m['name'] + ' '
+
+    return result
+
 
 def metric_thermostat(last=1):
     last_json = get_metric_from_bucket(last)
@@ -439,8 +464,8 @@ def digest(
     return result["digest"]
 
 
-url_gnu_rl = "https://gnu-rl-agent-ppb6otnevq-uk.a.run.app"
-#url_gnu_rl = "http://127.0.0.1:5001"
+#url_gnu_rl = "https://gnu-rl-agent-ppb6otnevq-uk.a.run.app"
+url_gnu_rl = "http://127.0.0.1:5001"
 
 
 @app.route("/next-action")
