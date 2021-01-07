@@ -74,7 +74,7 @@ provider "docker" {
     username = "oauth2accesstoken"
     password = data.google_client_config.default.access_token
   }
-  #host = "npipe:////.//pipe//docker_engine"
+  host = "npipe:////.//pipe//docker_engine"
 }
 
 data "docker_registry_image" "thermostat-agent" {
@@ -235,7 +235,6 @@ resource "google_pubsub_topic" "thermostat_metric_storage" {
 }
 
 resource "google_storage_notification" "notification" {
-  project = local.project_id
   bucket         = google_storage_bucket.thermostat_metric_data.name
   payload_format = "JSON_API_V1"
   topic          = google_pubsub_topic.thermostat_metric_storage.id
