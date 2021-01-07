@@ -241,7 +241,7 @@ resource "google_storage_notification" "notification" {
   # custom_attributes = {
   #   new-attribute = "new-attribute-value"
   # }
-  depends_on = [google_pubsub_topic_iam_binding.binding]
+  depends_on = [google_pubsub_topic_iam_binding.binding,google_storage_bucket.thermostat_metric_data]
 }
 
 // Enable notifications by giving the correct IAM permission to the unique service account.
@@ -257,6 +257,8 @@ resource "google_pubsub_topic_iam_binding" "binding" {
   topic   = google_pubsub_topic.thermostat_metric_storage.id
   role    = "roles/pubsub.publisher"
   members = ["serviceAccount:${data.google_storage_project_service_account.gcs_account.email_address}"]
+
+  depends_on = [google_pubsub_topic.thermostat_metric_storage]
 }
 
 // End enabling notifications
