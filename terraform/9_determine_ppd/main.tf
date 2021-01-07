@@ -222,6 +222,7 @@ resource "google_storage_bucket" "thermostat_metric_data" {
 
 
 resource "google_pubsub_topic" "thermostat_metric_storage" {
+  project = local.project_id
   name = "thermostat_metric_storage"
   labels = {
     project = "thermostat"
@@ -234,6 +235,7 @@ resource "google_pubsub_topic" "thermostat_metric_storage" {
 }
 
 resource "google_storage_notification" "notification" {
+  project = local.project_id
   bucket         = google_storage_bucket.thermostat_metric_data.name
   payload_format = "JSON_API_V1"
   topic          = google_pubsub_topic.thermostat_metric_storage.id
@@ -256,6 +258,7 @@ output "gcsaccountemailaddress" {
 }
 
 resource "google_pubsub_topic_iam_binding" "binding" {
+  project = local.project_id
   topic   = google_pubsub_topic.thermostat_metric_storage.id
   role    = "roles/pubsub.publisher"
   members = ["serviceAccount:${data.google_storage_project_service_account.gcs_account.email_address}"]
@@ -270,7 +273,7 @@ resource "google_pubsub_topic_iam_binding" "binding" {
 resource "google_pubsub_subscription" "thermostat_metric_subsciption" {
   name  = "thermostat_metric_subsciption"
   topic = google_pubsub_topic.thermostat_metric_storage.name
-
+  project = local.project_id
   labels = {
     project = "thermostat"
   }
@@ -293,7 +296,8 @@ resource "google_pubsub_subscription" "thermostat_metric_subsciption" {
   depends_on = [google_pubsub_topic.thermostat_metric_storage]
 }
 
-resource "google_pubsub_subscription_iam_binding" "editor" {
+resource "google_pubsub_subscription_iam_binding" "pull-subscriber" {
+  project = local.project_id
   subscription = google_pubsub_subscription.thermostat_metric_subsciption.name
   role         = "roles/pubsub.subscriber"
   members = [
