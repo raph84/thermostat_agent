@@ -241,7 +241,9 @@ resource "google_storage_notification" "notification" {
   # custom_attributes = {
   #   new-attribute = "new-attribute-value"
   # }
-  depends_on = [google_pubsub_topic_iam_binding.binding,google_storage_bucket.thermostat_metric_data]
+  depends_on = [google_pubsub_topic_iam_binding.binding,
+                google_storage_bucket.thermostat_metric_data,
+                google_pubsub_topic.thermostat_metric_storage]
 }
 
 // Enable notifications by giving the correct IAM permission to the unique service account.
@@ -287,6 +289,8 @@ resource "google_pubsub_subscription" "thermostat_metric_subsciption" {
   }
 
   enable_message_ordering    = true
+
+  depends_on = [google_pubsub_topic.thermostat_metric_storage]
 }
 
 resource "google_pubsub_subscription_iam_binding" "editor" {
@@ -295,6 +299,7 @@ resource "google_pubsub_subscription_iam_binding" "editor" {
   members = [
     join(":", ["serviceAccount", google_service_account.thermostat-agent.email]),
   ]
+  depends_on = [google_pubsub_topic.thermostat_metric_storage, google_pubsub_subscription.thermostat_metric_subsciption]
 }
 
 
