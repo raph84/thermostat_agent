@@ -226,11 +226,11 @@ resource "google_pubsub_topic" "thermostat_metric_storage" {
   labels = {
     project = "thermostat"
   }
-  message_storage_policy {
-    allowed_persistence_regions = [
-      "us-east4",
-    ]
-  }
+  # message_storage_policy {
+  #   allowed_persistence_regions = [
+  #     "us-east4",
+  #   ]
+  # }
 }
 
 resource "google_storage_notification" "notification" {
