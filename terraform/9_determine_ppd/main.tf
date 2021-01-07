@@ -249,7 +249,7 @@ resource "google_storage_notification" "notification" {
 data "google_storage_project_service_account" "gcs_account" {
 }
 
-output "google_storage_project_service_account.gcs_account.email_address" {
+output "gcsaccountemailaddress" {
   value = "serviceAccount:${data.google_storage_project_service_account.gcs_account.email_address}"
 }
 
