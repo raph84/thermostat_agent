@@ -237,11 +237,11 @@ resource "google_storage_notification" "notification" {
   bucket         = google_storage_bucket.thermostat_metric_data.name
   payload_format = "JSON_API_V1"
   topic          = google_pubsub_topic.thermostat_metric_storage.id
-  event_types    = ["OBJECT_FINALIZE", "OBJECT_METADATA_UPDATE"]
+  event_types    = ["OBJECT_FINALIZE"]
   # custom_attributes = {
   #   new-attribute = "new-attribute-value"
   # }
-  depends_on = [google_pubsub_topic_iam_binding.binding]
+  #depends_on = [google_pubsub_topic_iam_binding.binding]
 }
 
 // Enable notifications by giving the correct IAM permission to the unique service account.
