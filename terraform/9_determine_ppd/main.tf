@@ -241,12 +241,16 @@ resource "google_storage_notification" "notification" {
   # custom_attributes = {
   #   new-attribute = "new-attribute-value"
   # }
-  #depends_on = [google_pubsub_topic_iam_binding.binding]
+  depends_on = [google_pubsub_topic_iam_binding.binding]
 }
 
 // Enable notifications by giving the correct IAM permission to the unique service account.
 
 data "google_storage_project_service_account" "gcs_account" {
+}
+
+output "google_storage_project_service_account.gcs_account.email_address" {
+  value = "serviceAccount:${data.google_storage_project_service_account.gcs_account.email_address}"
 }
 
 resource "google_pubsub_topic_iam_binding" "binding" {
