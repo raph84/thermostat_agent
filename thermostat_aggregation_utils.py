@@ -2,6 +2,8 @@ import pandas as pd
 import json
 from yadt import utc_to_toronto, utcnow, parse_date, apply_tz_toronto
 from datetime import datetime
+import logging
+import re
 
 from thermal_comfort import ppd
 
@@ -13,6 +15,11 @@ def metric_str_to_json(json_str):
     last_json = []
     try:
         j = json.loads(json_str, parse_int=dofloat)
+
+        if 'temperature' in j.keys() and j['temperature'] is None:
+            #assert j['temperature'] is not None, json_str
+            logging.warning("Payload doesn't contain temperature value : {}".format(json_str))
+
         #j['dt'] = apply_tz_toronto(datetime.fromtimestamp(j['timestamp']))
 
         #if len(list(j.keys())) > 0:
@@ -44,6 +51,10 @@ def aggregator_item(filename, item, date_function, value_function):
     date_function(item)
     metric_dict = value_function(item)
 
+    if filename.startswith('environment_sensor_basement-'):
+        assert 'temp_basement' in metric_dict.keys(), metric_dict
+
+
     if 'logs' in metric_dict.keys():
         del metric_dict['logs']
     if 'sound' in metric_dict.keys():
@@ -65,28 +76,39 @@ def aggregate_to_dataframe(filename, data, thermostat_dataframe):
             date_function = date_function_thermostat
             value_function = value_function_thermostat
 
-        d_dict = aggregator_item(filename, d, date_function,
-                                 value_function_thermostat)
 
+        try:
+            d_dict = aggregator_item(filename, d, date_function,
+                                    value_function)
+        except KeyError as ke:
+            logging.warning("A key is missing : {} ---- {}".format(
+                d, ke))
+            continue
+            #raise ke
+
+
+        #if 'temperature' not in d_dict.keys() or isinstance(d_dict['temperature'],float) == False:
+        #    continue
+
+        d_dict['filename'] = filename
         df_data = pd.DataFrame(d_dict, index=[d_dict['dt']])
-        if 'temperature' in df_data:
-            df_data['temperature'] = df_data['temperature'].astype(float)
-        if 'humidity' in df_data:
-            df_data['humidity'] = df_data['humidity'].astype(float)
-        if 'stove_exhaust_temp' in df_data:
-            df_data['stove_exhaust_temp'] = df_data['stove_exhaust_temp'].astype(
-                float)
 
-        if filename == 'thermostat-20210105-170817' or filename == 'thermostat-20210105-170814':
-            print(df_data)
 
         if len(thermostat_dataframe) > 0:
+            # try:
+            #     merged = df_data.merge(thermostat_dataframe,
+            #                         how='left',
+            #                         indicator=True)
+            #     merged = merged[merged['_merge'] == 'left_only']
+            # except Exception as e:
             merged = df_data.merge(thermostat_dataframe,
                                    how='left',
-                                   indicator=True)
+                                   indicator=True,
+                                   on=['dt','location'])
             merged = merged[merged['_merge'] == 'left_only']
 
 
+        # If df is empty this will be the first row
         if len(thermostat_dataframe) == 0 or len(merged) > 0:
             merge = True
             thermostat_dataframe = thermostat_dataframe.append(df_data)
@@ -145,10 +167,20 @@ def date_selection_realtime(dt, end_date, start_date):
 
 def value_function_thermostat(i):
 
-    if i['location'] == 'house.basement.stove':
+    if 'location' not in i.keys():
+        if 'site' in i.keys():
+            i['location'] = i['site']
+            del i['site']
+        else:
+            if 'stove_exhaust_temp' in i.keys():
+                i['location'] = 'house.basement.stove'
+            else:
+                raise KeyError('location',i)
+
+    if i.get('location') == 'house.basement.stove':
         i['Coil Power'] = coil_power(i['stove_exhaust_temp'])
     else:
-        if i['location'] == 'house.kitchen':
+        if i.get('location') == 'house.kitchen' and 'temperature' in i.keys():
             ppd_value = ppd(tdb=i['temperature'],
                             tr=i['temperature'],
                             rh=i['humidity'])
@@ -226,7 +258,37 @@ def date_selection_realtime(dt, end_date, start_date):
     return select, end
 
 
+def find_temperature_original_payload(original_payload):
+    t = re.match(r".+temperature:([0-9]+\.[0-9]+)",
+                 original_payload)
+
+    temperature = None
+    if t is not None:
+        t = t.groups()
+        if len(t) > 0:
+            temperature = float(t[0])
+
+
+
+    return temperature
+
+
 def value_function_basement(i):
+
+    if 'temperature' not in i.keys() or i['temperature'] is None:
+        if 'original_payload' in i.keys():
+            i['temperature'] = find_temperature_original_payload(i['original_payload'])
+            if i['temperature'] == None:
+                logging.warning(
+                    "Cannot fin temperature value from original_payload : {}".
+                    format(i['original_payload']))
+
+    if isinstance(i['temperature'], str):
+        t = find_temperature_original_payload(i['temperature'])
+        if isinstance(t, float):
+            i['temperature'] = t
+        else:
+            logging.warning("Invalid temperature value : {}".format(i['temperature']))
 
     i['temp_basement'] = i['temperature']
     i["Sys Out Temp."] = i['temp_basement']

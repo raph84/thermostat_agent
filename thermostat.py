@@ -441,9 +441,9 @@ def digest(
     nan_agg2 = agg2.isnull().sum()
     nan_hourly = hourly.isnull().sum()
 
-    current = agg2.tail(1).to_dict('records')[0]
+    current = agg2.copy(deep=True).tail(1).to_dict('records')[0]
     #disturbances = agg2.drop(agg2.tail(1).index).tail(14)
-    disturbances = agg2.tail(14)
+    disturbances = agg2.copy(deep=True).tail(14)
     disturbances = disturbances.append(hourly)
 
     logging.info("Digest current date : {}".format(current['dt']))
