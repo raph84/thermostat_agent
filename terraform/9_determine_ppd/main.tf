@@ -74,7 +74,7 @@ provider "docker" {
     username = "oauth2accesstoken"
     password = data.google_client_config.default.access_token
   }
-  #host = "npipe:////.//pipe//docker_engine"
+  host = "npipe:////.//pipe//docker_engine"
 }
 
 data "docker_registry_image" "thermostat-agent" {
@@ -467,31 +467,6 @@ resource "google_project_iam_member" "jobUser" {
 #     }
 #   }
 # }
-
-resource "google_cloud_scheduler_job" "job" {
-  name             = "thermostat-next-action"
-  description      = "Determine next action and push it to thermostat"
-  schedule         = "5,20,35,50 * * * *"
-  time_zone        = "Etc/UTC"
-  attempt_deadline = "320s"
-  project = local.project_id
-
-  retry_config {
-    retry_count = 2
-    min_backoff_duration = "60s"
-    max_retry_duration = "40s"
-  }
-
-  http_target {
-    http_method = "GET"
-    uri         = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/next-action"
-
-    oidc_token {
-      service_account_email = google_service_account.thermostat-agent.email
-      audience = "https://thermostat-agent-ppb6otnevq-uk.a.run.app/next-action"
-    }
-  }
-}
 
 data "google_pubsub_topic" "environment-sensor-topic" {
   name = "environment-sensor"
