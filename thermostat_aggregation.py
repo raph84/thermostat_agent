@@ -177,18 +177,15 @@ def get_aggregation_metric_thermostat(skip_agg=False):
     nan_hourly = hourly_agg.isnull().sum()
 
     hourly_validate, hourly_failed_sequence = validate_index_sequence(hourly_agg)
-    agg2_validate, agg2_failed_sequence = validate_index_sequence(agg2)
+    df_validate, df_failed_sequence = validate_index_sequence(df)
     assert hourly_validate, '; '.join(x.to_pydatetime().isoformat() for x in hourly_failed_sequence)
-    assert agg2_validate, '; '.join(x.to_pydatetime().isoformat() for x in agg2_failed_sequence)
+    assert df_validate, '; '.join(x.to_pydatetime().isoformat() for x in df_failed_sequence)
 
-    if nan_agg2 > 0:
-        logging.error("Null values in data aggregation : {}".format(
-            agg2.isnull().sum()))
 
     cloud_logger.info("Data aggregation done.")
 
 
-    return agg2, hourly_agg
+    return df, hourly_agg
 
 def aggregate_next_action_result(next_action):
 
