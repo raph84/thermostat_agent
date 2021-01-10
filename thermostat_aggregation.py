@@ -9,7 +9,7 @@ from flask import Blueprint
 from google.cloud import storage
 from google.cloud import pubsub_v1
 from google.api_core import retry
-from yadt import parse_date, apply_tz_toronto, utc_to_toronto, utcnow
+from yadt import parse_date, apply_tz_toronto, utc_to_toronto, utcnow, ceil_dt, floor_date
 from datetime import datetime, timedelta
 import pandas as pd
 import json
@@ -23,6 +23,7 @@ thermostat_aggregation = Blueprint('thermostat_aggregation', __name__)
 cloud_logger = logging
 
 FILENAME = "aggregate.p"
+THERMOSTAT_DATAFRAME = "_thermostat_metric_data.p"
 bucket_name = "thermostat_metric_data"
 bucket_climacell = "climacell_data"
 
@@ -83,53 +84,7 @@ def request_get_aggregation():
         "hourly": hourly.to_dict('records')
     }
 
-def motion_df_resample(agg):
 
-
-    m = agg.copy(deep=True)[['motion']]
-    m['Occupancy Flag'] = m['motion']
-    del m['motion']
-    m['Occupancy Flag'] = m['Occupancy Flag'].apply(lambda x: 1 if x else 0)
-    m = m.resample('3min').sum()
-    # Normalize values
-    m['Occupancy Flag'] = (m['Occupancy Flag'] - m['Occupancy Flag'].min()
-                            ) / (m['Occupancy Flag'].max() -
-                                m['Occupancy Flag'].min())
-    # Exponential decay
-    x_item = {}
-    for x in range(12):
-        max = m.index.max()
-        next_item = max + pd.Timedelta(value=15, unit='minutes')
-        m = m.append(pd.DataFrame(data=x_item, index=[next_item]))
-
-
-    m['Occupancy Flag'] = m['Occupancy Flag'].ewm(halflife='6Min',
-                                                    times=m.index).mean()
-    agg_quantile = m.copy(deep=True)[['Occupancy Flag']]
-    m = m[['Occupancy Flag']].resample('15min').sum()
-
-
-    start_index = agg_quantile.index.min()
-    end_index = agg_quantile.index[agg_quantile.index.searchsorted(
-        start_index + pd.Timedelta(value=3, unit='hours'))]
-    logging.info(
-        "Evaluate motion threshold quantile with subset from {} to {}.".format(
-            start_index.to_pydatetime().isoformat(),
-            end_index.to_pydatetime().isoformat()))
-    agg_quantile = agg_quantile[start_index:end_index][[
-        'Occupancy Flag'
-    ]]
-
-    # TODO : Rolling quantile on the whole dataset
-
-    # Values bellow 50 quantile will be False
-    m['quantile'] = agg_quantile['Occupancy Flag'].quantile(q=0.75)
-    m['Occupancy Flag'] = m.apply(
-        lambda x: True if x['Occupancy Flag'] > x['quantile'] else False,
-        axis=1)
-    del m['quantile']
-
-    return m
 
 def validate_index_sequence(df):
     delta = timedelta(minutes=15)
@@ -151,136 +106,53 @@ def get_aggregation_metric_thermostat(skip_agg=False):
     # The name for the new bucket
     bucket = storage_client.bucket("thermostat_metric_data")
 
-    b = bucket.get_blob(FILENAME)
+    b = bucket.get_blob(THERMOSTAT_DATAFRAME)
 
     b.temporary_hold = True
     b.patch()
     pickle_load = b.download_as_bytes()
-    agg2 = pickle.loads(pickle_load)
-
-    if skip_agg == False:
-
-        agg2_now = utcnow()
-        if agg2.index.max() > agg2_now:
-            # We might have new data to aggregate for this last 15 minutes.
-            logging.warning("")
-            agg2.drop(index=agg2.index.max())
+    thermostat_dataframe = pickle.loads(pickle_load)
 
 
-
-        end_date = utc_to_toronto(agg2.index.max().to_pydatetime())
-        end_date_motion = end_date - timedelta(hours=3)
-        #end_date = parse_date("2020-12-30T08:43:00-0500")
-
-        cloud_logger.info("Downloading latest thermostat metrics back to {}...".format(end_date.isoformat()))
-        metric_list = list(storage_client.list_blobs(bucket_name, prefix='thermostat'))
-        metric_list.reverse()
-        thermostat_agg = aggregator(metric_list, date_function_thermostat,
-                                    value_function_thermostat,
-                                    date_selection_realtime, end_date_motion)
-        thermostat_agg.rename(columns={'temperature': 'Indoor Temp.'}, inplace=True)
+    agg2_now = utcnow()
+    dt_end = utc_to_toronto(floor_date(agg2_now, minutes=15))
+    dt_start = dt_end - timedelta(hours=3)
 
 
-        #end_date = utc_to_toronto(thermostat_agg.index.min().to_pydatetime())
-        end_date = thermostat_agg.index[thermostat_agg.index.searchsorted(end_date)]
+    check_thermostat_dataframe_up2date(dt_end, thermostat_dataframe)
 
-        thermostat_agg_motion = thermostat_agg.copy(deep=True)
-        thermostat_agg = thermostat_agg[end_date:thermostat_agg.index.max()]
+    df = thermostat_dataframe_timeframe(thermostat_dataframe,
+                                                dt_start, dt_end)
 
-        if len(thermostat_agg) > 0:
-            cloud_logger.info("New thermostat metric to aggregate back to : {}".format(thermostat_agg.index.min()))
+    df, m = aggregate_thermostat_dataframe(df)
 
-            cloud_logger.info("Downloading latest basement metrics...")
-            basement_list = list(storage_client.list_blobs(bucket, prefix='environment_sensor_basement-'))
-            basement_list.reverse()
-            basement_agg = aggregator(basement_list, date_function_basement,
-                                    value_function_basement,
-                                    date_selection_realtime,
-                                    end_date - timedelta(hours=1))
-            basement_agg = basement_agg.resample('15Min').mean()
 
-            cloud_logger.info("Downloading latest realtime weather...")
-            realtime_list = list(storage_client.list_blobs(bucket_climacell, prefix='realtime'))
-            realtime_list.reverse()
-            realtime_agg = aggregator(realtime_list, date_function_climacell,
-                                    value_function_climacell,
-                                    date_selection_realtime,
-                                    end_date - timedelta(hours=1))
+    cloud_logger.info("Downloading latest realtime weather...")
+    realtime_list = list(storage_client.list_blobs(bucket_climacell, prefix='realtime'))
+    realtime_list.reverse()
+    realtime_agg = aggregator(realtime_list, date_function_climacell,
+                                value_function_climacell,
+                                date_selection_realtime, dt_end, dt_start
+                                )
 
-            rename_climacell_columns(realtime_agg)
-            # TODO: check NaN from climacell
+    rename_climacell_columns(realtime_agg)
+    # TODO: check NaN from climacell
 
-            realtime_agg.interpolate(limit=6, inplace=True)
+    realtime_agg.interpolate(limit=6, inplace=True)
 
-            nan_realtime = realtime_agg.isnull().sum().sum()
-            #if nan_realtime ­­>0:
-            #    logging.error("Null values in realtime climacell data : {}".format(realtime_agg.is_null().sum()))
+    nan_realtime = realtime_agg.isnull().sum().sum()
+    assert nan_realtime == 0, "Null values in realtime climacell data : {}".format(realtime_agg.is_null().sum())
+    assert len(realtime_agg) > 0, "Realtime weather missing"
 
-            stove = thermostat_agg.copy(deep=True)[thermostat_agg['location'] == 'house.basement.stove'][['stove_exhaust_temp', 'Coil Power']]
-            t_a = thermostat_agg.copy(deep=True)[thermostat_agg['location'] != 'house.basement.stove']
-            # t_a.sort_values('dt', inplace=True)
-            # stove.sort_values('dt', inplace=True)
-            del t_a['stove_exhaust_temp']
-            del t_a['location']
-            del t_a['Coil Power']
-
-            #agg = pd.merge_asof(t_a, stove, left_on='dt', right_on='dt', direction="nearest")
-            agg = pd.merge_asof(t_a, stove, left_index = True, right_index = True, direction="nearest")
-
-            #agg.set_index('dt', inplace=True)
-
-            #agg.sort_values('dt',inplace=True)
-            #realtime_agg.sort_values('dt',inplace=True)
-            #agg = pd.merge_asof(agg, realtime_agg,left_on='dt',right_on='dt',direction="nearest")
-            if len(realtime_agg) > 0:
-                agg = pd.merge_asof(agg, realtime_agg,
-                                    left_index=True,
-                                    right_index=True,
-                                    direction="nearest")
-            #agg.set_index('dt', inplace=True)
-            agg = agg[~agg.index.duplicated(keep='first')]
-            agg_x = agg.resample('15Min').mean()
-            print("Duplicate agg_x : {}".format(agg_x.index.duplicated().sum()))
-
-            ##
-            m = motion_df_resample(thermostat_agg_motion)
-            ##
-
-            agg_x = agg_x.merge(m, left_index=True, right_index=True)
-            agg_x = agg_x.merge(basement_agg, left_index=True, right_index=True)
-            agg_x = agg_x.drop(index=agg2.index, errors='ignore')
-            #agg_x['dt'] = agg_x.index.values
-            #agg_x['dt'] = agg_x['dt'].apply(lambda x: utc_to_toronto(x.to_pydatetime()).isoformat())
-
-            agg2 = agg2.append(agg_x)
-            agg2['dt'] = agg2.index.values
-            agg2['dt'] = agg2['dt'].apply(
-                lambda x: utc_to_toronto(x.to_pydatetime()).isoformat())
-
-            dup_agg2 = agg2.index.duplicated().sum()
-            if dup_agg2 > 0:
-                cloud_logger.warning("Duplicate agg_x : {}".format(dup_agg2))
-                dup_agg2 = agg2.copy(deep=True)
-                dup_agg2['dup'] = dup_agg2.index.duplicated(keep=False)
-                dup_agg2 = dup_agg2[dup_agg2['dup']]
-                dup_agg2.sort_index(inplace=True)
-                logging.info(dup_agg2.to_dict('records'))
-                agg2 = agg2[~agg2.index.duplicated(keep='first')]
+    df = pd.merge_asof(df, realtime_agg,
+                        left_index=True,
+                        right_index=True,
+                        direction="nearest")
 
 
 
-            cloud_logger.info("Uploading aggregation results...")
-            pickle_dump = pickle.dumps(agg2)
-            b = bucket.get_blob(FILENAME)
-            b.temporary_hold = False
-            b.patch()
-            b.upload_from_string(data=pickle_dump, content_type='text/plain')
-
-    else:
-        logging.warning("No aggregation has been done. ship_agg == True.")
-
-    hourly_start = agg2.index.max().to_pydatetime() - timedelta(minutes=60)
-    hourly_end = hourly_start + timedelta(hours=7)
+    hourly_start = dt_start - timedelta(minutes=80)
+    hourly_end = dt_end + timedelta(hours=7)
 
     hourly_list = list(storage_client.list_blobs(bucket_climacell, prefix='hourly'))
     hourly_list.reverse()
@@ -291,24 +163,17 @@ def get_aggregation_metric_thermostat(skip_agg=False):
 
     #Sometime climacell has missing values
     hourly_agg.interpolate(limit=6, inplace=True)
-
     hourly_agg = hourly_agg.resample('15Min').interpolate(method='linear')
-    if 'm' in locals():
-        hourly_agg = hourly_agg.merge(m, left_index=True, right_index=True)
-    else:
-        hourly_agg['Occupancy Flag'] = False
-    hourly_agg = hourly_agg.drop(index=agg2.index, errors='ignore')
+    hourly_agg = hourly_agg.merge(m, left_index=True, right_index=True)
+    hourly_agg = hourly_agg.drop(index=df.index, errors='ignore')
     hourly_agg = hourly_agg.head(13)
     #del hourly_agg['dt']
 
-    if len(hourly_agg) >= 12:
-        logging.info("Number of hourly forecast items (should be at least 12) : {}".format(len(hourly_agg)))
-    else:
+    if len(hourly_agg) < 13:
         logging.error("Not enought hourly forecast : {}. MPC model will likely fail.")
 
     #agg2.interpolate(limit=6, inplace=True)
 
-    nan_agg2 = agg2.isnull().sum().sum()
     nan_hourly = hourly_agg.isnull().sum()
 
     hourly_validate, hourly_failed_sequence = validate_index_sequence(hourly_agg)

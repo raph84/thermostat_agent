@@ -17,6 +17,17 @@ def ceil_dt(dt, delta):
     return ceil.replace(tzinfo=tz)
 
 
+def ceil_date(date, **kwargs):
+    secs = timedelta(**kwargs).total_seconds()
+    return datetime.fromtimestamp(date.timestamp() + secs -
+                                  date.timestamp() % secs)
+
+
+def floor_date(date, **kwargs):
+    secs = timedelta(**kwargs).total_seconds()
+    return datetime.fromtimestamp(date.timestamp() - date.timestamp() % secs)
+
+
 def utcnow():
     return datetime.now(tz=tz)
 

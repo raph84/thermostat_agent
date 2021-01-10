@@ -1,7 +1,7 @@
 import pandas as pd
 import json
 from yadt import utc_to_toronto, utcnow, parse_date, apply_tz_toronto
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import re
 
@@ -10,15 +10,24 @@ from thermal_comfort import ppd
 def dofloat(number):
     return float(number)
 
+
+def get_metric_from_bucket(blob):
+
+    json_str = blob.download_as_bytes()
+    last_json = metric_str_to_json(json_str)
+
+    return last_json
+
+
 def metric_str_to_json(json_str):
 
     last_json = []
     try:
         j = json.loads(json_str, parse_int=dofloat)
 
-        if 'temperature' in j.keys() and j['temperature'] is None:
-            #assert j['temperature'] is not None, json_str
-            logging.warning("Payload doesn't contain temperature value : {}".format(json_str))
+        #if 'temperature' in j.keys() and j['temperature'] is None:
+        #assert j['temperature'] is not None, json_str
+        #logging.warning("Payload doesn't contain temperature value : {}".format(json_str))
 
         #j['dt'] = apply_tz_toronto(datetime.fromtimestamp(j['timestamp']))
 
@@ -53,6 +62,7 @@ def aggregator_item(filename, item, date_function, value_function):
 
     if filename.startswith('environment_sensor_basement-'):
         assert 'temp_basement' in metric_dict.keys(), metric_dict
+        assert metric_dict.get('temp_basement') is not None
 
 
     if 'logs' in metric_dict.keys():
@@ -101,15 +111,17 @@ def aggregate_to_dataframe(filename, data, thermostat_dataframe):
             #                         indicator=True)
             #     merged = merged[merged['_merge'] == 'left_only']
             # except Exception as e:
-            merged = df_data.merge(thermostat_dataframe,
-                                   how='left',
-                                   indicator=True,
-                                   on=['dt','location'])
-            merged = merged[merged['_merge'] == 'left_only']
+            merged = thermostat_dataframe[thermostat_dataframe['filename'].isin(df_data['filename'].tolist())]
+
+            # merged = df_data.merge(thermostat_dataframe,
+            #                        how='left',
+            #                        indicator=True,
+            #                        on=['dt','location'])
+            # merged = merged[merged['_merge'] == 'left_only']
 
 
         # If df is empty this will be the first row
-        if len(thermostat_dataframe) == 0 or len(merged) > 0:
+        if len(thermostat_dataframe) == 0 or len(merged) == 0:
             merge = True
             thermostat_dataframe = thermostat_dataframe.append(df_data)
 
@@ -153,14 +165,16 @@ def aggregator(blob_list,
 
 
 def date_selection_realtime(dt, end_date, start_date):
-    selection_end = end_date
 
     select = True
     end = False
-    if dt > selection_end:
-        #print(dt)
+
+    if dt < start_date:
         select = False
         end = True
+    else:
+        if dt > end_date:
+            select = False
 
     return select, end
 
@@ -245,19 +259,6 @@ def date_selection_hourly(dt, hourly_end, hourly_start):
     return select, end
 
 
-def date_selection_realtime(dt, end_date, start_date):
-    selection_end = end_date
-
-    select = True
-    end = False
-    if dt < selection_end:
-        #print(dt)
-        select = False
-        end = True
-
-    return select, end
-
-
 def find_temperature_original_payload(original_payload):
     t = re.match(r".+temperature:([0-9]+\.[0-9]+)",
                  original_payload)
@@ -321,3 +322,86 @@ def coil_power(stove_exhaust_temp):
         coil_power = 0
 
     return coil_power
+
+
+def thermostat_dataframe_timeframe(thermostat_dataframe, dt_start, dt_end):
+    dt_start = dt_start - timedelta(minutes=15)
+    df = thermostat_dataframe.loc[dt_start:dt_end]
+
+    return df
+
+
+def aggregate_thermostat_dataframe(thermostat_dataframe):
+
+    df = thermostat_dataframe[thermostat_dataframe['location'].isin(['house.kitchen', 'house.basement.stove', 'house.basement'])]
+    assert len(df[df['location'] == 'house.basement.stove']) > 0, len(
+        df[df['location'] == 'house.basement.stove'])
+    assert len(df[df['location'] == 'house.basement']) > 0, len(
+        df[df['location'] == 'house.basement'])
+
+
+    df.sort_index(inplace=True)
+
+    df_motion = motion_df_resample(df)
+
+    df = df.resample('15Min', label='right').mean()
+
+    df = df.merge(df_motion, left_index=True, right_index=True)
+
+    assert df.isnull().sum().sum() == 0, 'Aggregation should not contain NaN values : {}'.format(df.isnull().sum().sum())
+
+    return df, df_motion
+
+
+def check_thermostat_dataframe_up2date(start_date, thermostat_dataframe):
+
+    t_df_max = utc_to_toronto(thermostat_dataframe.index.max().to_pydatetime())
+    now_diff = start_date - t_df_max
+    assert now_diff<= timedelta(
+        minutes=3), "thermostat_dataframe data is too old : {}".format(
+            now_diff.total_seconds())
+
+    return True
+
+
+def motion_df_resample(agg):
+
+    m = agg.copy(deep=True)[['motion']]
+    m['Occupancy Flag'] = m['motion']
+    del m['motion']
+    m['Occupancy Flag'] = m['Occupancy Flag'].apply(lambda x: 1 if x else 0)
+    m = m.resample('3min').sum()
+    # Normalize values
+    m['Occupancy Flag'] = (m['Occupancy Flag'] - m['Occupancy Flag'].min()) / (
+        m['Occupancy Flag'].max() - m['Occupancy Flag'].min())
+    # Exponential decay
+    x_item = {}
+    for x in range(12):
+        max = m.index.max()
+        next_item = max + pd.Timedelta(value=15, unit='minutes')
+        m = m.append(pd.DataFrame(data=x_item, index=[next_item]))
+
+    m['Occupancy Flag'] = m['Occupancy Flag'].ewm(halflife='6Min',
+                                                  times=m.index).mean()
+    agg_quantile = m.copy(deep=True)[['Occupancy Flag']]
+    m = m[['Occupancy Flag']].resample('15min').sum()
+
+    start_index = agg_quantile.index.min()
+    end_index = agg_quantile.index[agg_quantile.index.searchsorted(
+        start_index + pd.Timedelta(value=3, unit='hours'))]
+    logging.info(
+        "Evaluate motion threshold quantile with subset from {} to {}.".format(
+            start_index.to_pydatetime().isoformat(),
+            end_index.to_pydatetime().isoformat()))
+    agg_quantile = agg_quantile[start_index:end_index][['Occupancy Flag']]
+
+    # TODO : Rolling quantile on the whole dataset
+
+    # Values bellow 50 quantile will be False
+    m['quantile'] = agg_quantile['Occupancy Flag'].quantile(q=0.75)
+    m['Occupancy Flag'] = m.apply(
+        lambda x: True if x['Occupancy Flag'] > x['quantile'] else False,
+        axis=1)
+    del m['quantile']
+
+    return m
