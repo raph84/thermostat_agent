@@ -425,7 +425,7 @@ def digest(
         skip_agg = False):
 
     agg2, hourly = get_aggregation_metric_thermostat(skip_agg)
-    agg2 = agg2.replace({np.nan: None})
+    #agg2 = agg2.replace({np.nan: None})
     # agg2['dt'] = agg2['dt'].apply(
     #     lambda x: utc_to_toronto(x.to_pydatetime()).isoformat())
 
@@ -437,9 +437,9 @@ def digest(
     hourly['Occupancy Flag'] = hourly['Occupancy Flag'].apply(lambda x: 1
                                                               if x else 0)
 
-
-    nan_agg2 = agg2.isnull().sum()
-    nan_hourly = hourly.isnull().sum()
+    agg2['dt'] = agg2.index.values
+    agg2['dt'] = agg2['dt'].apply(
+        lambda x: utc_to_toronto(x.to_pydatetime()).isoformat())
 
     current = agg2.copy(deep=True).tail(1).to_dict('records')[0]
     #disturbances = agg2.drop(agg2.tail(1).index).tail(14)

@@ -73,11 +73,17 @@ def aggregator_item(filename, item, date_function, value_function):
     return metric_dict
 
 
-def aggregate_to_dataframe(filename, data, thermostat_dataframe):
+def aggregate_to_dataframe(filename, data, thermostat_dataframe, load_date):
 
     merge = False
 
     for d in data:
+        if len(thermostat_dataframe) > 0:
+            merged = thermostat_dataframe[thermostat_dataframe['filename']==filename]
+            if len(thermostat_dataframe) == 0 or len(merged) == 0:
+                merge = True
+            else:
+                continue
 
         if (filename.startswith("environment_")):
             date_function = date_function_basement
@@ -101,29 +107,12 @@ def aggregate_to_dataframe(filename, data, thermostat_dataframe):
         #    continue
 
         d_dict['filename'] = filename
+        d_dict['load_date'] = load_date
         df_data = pd.DataFrame(d_dict, index=[d_dict['dt']])
 
 
-        if len(thermostat_dataframe) > 0:
-            # try:
-            #     merged = df_data.merge(thermostat_dataframe,
-            #                         how='left',
-            #                         indicator=True)
-            #     merged = merged[merged['_merge'] == 'left_only']
-            # except Exception as e:
-            merged = thermostat_dataframe[thermostat_dataframe['filename'].isin(df_data['filename'].tolist())]
-
-            # merged = df_data.merge(thermostat_dataframe,
-            #                        how='left',
-            #                        indicator=True,
-            #                        on=['dt','location'])
-            # merged = merged[merged['_merge'] == 'left_only']
-
-
-        # If df is empty this will be the first row
-        if len(thermostat_dataframe) == 0 or len(merged) == 0:
-            merge = True
-            thermostat_dataframe = thermostat_dataframe.append(df_data)
+        #thermostat_dataframe = thermostat_dataframe.append(df_data)
+        thermostat_dataframe = pd.concat([thermostat_dataframe, df_data])
 
     return merge, thermostat_dataframe
 
@@ -348,8 +337,6 @@ def aggregate_thermostat_dataframe(thermostat_dataframe):
 
     df = df.merge(df_motion, left_index=True, right_index=True)
 
-    assert df.isnull().sum().sum() == 0, 'Aggregation should not contain NaN values : {}'.format(df.isnull().sum().sum())
-
     return df, df_motion
 
 
@@ -376,9 +363,15 @@ def motion_df_resample(agg):
         m['Occupancy Flag'].max() - m['Occupancy Flag'].min())
     # Exponential decay
     x_item = {}
-    for x in range(12):
+
+    # Add 12 episodes of 15 minutes each
+    episode = 12
+    # Currently resampled at 3 minutes per episodes
+    episode = episode * 5
+
+    for x in range(episode):
         max = m.index.max()
-        next_item = max + pd.Timedelta(value=15, unit='minutes')
+        next_item = max + pd.Timedelta(value=3, unit='minutes')
         m = m.append(pd.DataFrame(data=x_item, index=[next_item]))
 
     m['Occupancy Flag'] = m['Occupancy Flag'].ewm(halflife='6Min',

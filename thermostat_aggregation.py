@@ -115,7 +115,7 @@ def get_aggregation_metric_thermostat(skip_agg=False):
 
 
     agg2_now = utcnow()
-    dt_end = utc_to_toronto(floor_date(agg2_now, minutes=15))
+    dt_end = apply_tz_toronto(floor_date(agg2_now, minutes=15))
     dt_start = dt_end - timedelta(hours=3)
 
 
@@ -123,6 +123,10 @@ def get_aggregation_metric_thermostat(skip_agg=False):
 
     df = thermostat_dataframe_timeframe(thermostat_dataframe,
                                                 dt_start, dt_end)
+
+
+    # For motion detection we must have da
+
 
     df, m = aggregate_thermostat_dataframe(df)
 
@@ -135,14 +139,17 @@ def get_aggregation_metric_thermostat(skip_agg=False):
                                 date_selection_realtime, dt_end, dt_start
                                 )
 
-    rename_climacell_columns(realtime_agg)
-    # TODO: check NaN from climacell
-
-    realtime_agg.interpolate(limit=6, inplace=True)
-
-    nan_realtime = realtime_agg.isnull().sum().sum()
-    assert nan_realtime == 0, "Null values in realtime climacell data : {}".format(realtime_agg.is_null().sum())
     assert len(realtime_agg) > 0, "Realtime weather missing"
+
+    rename_climacell_columns(realtime_agg)
+    nan_realtime = realtime_agg.isnull().sum().sum()
+    if nan_realtime > 0:
+        logger.warn("NaN values in realtime_agg : {}. interpolate to fill the gaps...".format(nan_realtime))
+        realtime_agg.interpolate(limit=6, inplace=True)
+        nan_realtime = realtime_agg.isnull().sum().sum()
+
+    assert nan_realtime == 0, "Still have NaN values in realtime climacell data : {}".format(realtime_agg.is_null().sum())
+
 
     df = pd.merge_asof(df, realtime_agg,
                         left_index=True,
@@ -151,8 +158,8 @@ def get_aggregation_metric_thermostat(skip_agg=False):
 
 
 
-    hourly_start = dt_start - timedelta(minutes=80)
-    hourly_end = dt_end + timedelta(hours=7)
+    hourly_start = dt_start - timedelta(days=1)
+    hourly_end = dt_end + timedelta(hours=14)
 
     hourly_list = list(storage_client.list_blobs(bucket_climacell, prefix='hourly'))
     hourly_list.reverse()
@@ -162,7 +169,10 @@ def get_aggregation_metric_thermostat(skip_agg=False):
     rename_climacell_columns(hourly_agg)
 
     #Sometime climacell has missing values
-    hourly_agg.interpolate(limit=6, inplace=True)
+    if hourly_agg.isnull().sum().sum() > 0:
+        logger.warn('NaN value in hourly weather forecast : {} --- {}'.format(
+            hourly_agg.isnull().sum().sum(),hourly_agg))
+        hourly_agg.interpolate(limit=6, inplace=True)
     hourly_agg = hourly_agg.resample('15Min').interpolate(method='linear')
     hourly_agg = hourly_agg.merge(m, left_index=True, right_index=True)
     hourly_agg = hourly_agg.drop(index=df.index, errors='ignore')
@@ -170,7 +180,9 @@ def get_aggregation_metric_thermostat(skip_agg=False):
     #del hourly_agg['dt']
 
     if len(hourly_agg) < 13:
-        logging.error("Not enought hourly forecast : {}. MPC model will likely fail.")
+        logging.error(
+            "Not enought hourly forecast : {}. MPC model will likely fail.".
+            format(len(hourly_agg)))
 
     #agg2.interpolate(limit=6, inplace=True)
 
@@ -253,6 +265,7 @@ def aggregate_metric_thermostat():
     delta = timedelta(seconds=10)
     start = utcnow() + timedelta(seconds=1)
 
+    load_date = utcnow()
 
     while utcnow() - start < delta:
 
@@ -295,7 +308,7 @@ def aggregate_metric_thermostat():
 
                     data = get_metric_from_bucket(blob)
                     merge, thermostat_dataframe = aggregate_to_dataframe(
-                        blob.name, data, thermostat_dataframe)
+                        blob.name, data, thermostat_dataframe, load_date)
 
                     if merge :
                         updates = updates + 1
