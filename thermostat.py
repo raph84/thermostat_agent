@@ -149,6 +149,8 @@ def get_metric_from_bucket(last=0, pref='thermostat', last_file=None, first_file
             j = scan_and_apply_tz(j)
 
             j["file"] = blobs[i].name
+
+            # TODO : datetime.fromtimestamp need to have the tz argument
             j['datetime'] = scan_and_apply_tz(datetime.fromtimestamp(
                                                      j['timestamp']))
             j['dateobj'] = apply_tz_toronto(datetime.fromtimestamp(j['timestamp']))

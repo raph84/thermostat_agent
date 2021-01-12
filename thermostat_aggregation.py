@@ -31,47 +31,6 @@ project_id = os.environ['PROJECT_ID']
 subscription_id = 'thermostat_metric_subsciption'
 
 
-def get_metric_from_bucket(blob):
-
-    json_str = blob.download_as_bytes()
-    last_json = metric_str_to_json(json_str)
-
-    return last_json
-
-
-
-
-
-def create_file(payload, filename):
-    blob = bucket.blob(filename)
-
-    blob.upload_from_string(data=payload, content_type='text/plain')
-
-def rename_climacell_columns(data):
-    data.rename(columns={
-        'humidity': 'Outdoor RH',
-        'temp': 'Outdoor Temp.',
-        'surface_shortwave_radiation': 'Direct Solar Rad.',
-        'wind_speed': 'Wind Speed',
-        'wind_direction': 'Wind Direction'
-    },
-                inplace=True)
-
-def retrieve_hourly():
-    hourly_start = agg2.index.max().to_pydatetime()
-    hourly_end = hourly_start + timedelta(hours=4)
-
-    hourly_list = list(
-        storage_client.list_blobs(bucket_climacell, prefix='hourly'))
-
-
-    hourly_list.reverse()
-
-    hourly_agg = aggregator(hourly_list, date_function_climacell,
-                            value_function_climacell, date_selection_hourly)
-    rename_climacell_columns(hourly_agg)
-    hourly_agg
-
 @thermostat_aggregation.route('/aggregation/', methods=['GET'])
 def request_get_aggregation():
 
@@ -84,20 +43,6 @@ def request_get_aggregation():
         "hourly": hourly.to_dict('records')
     }
 
-
-
-def validate_index_sequence(df):
-    delta = timedelta(minutes=15)
-    list_index = df.index.values.tolist()
-    last_index_item = list_index.pop()
-    validate = True
-    failed_sequence = []
-    for i in list_index:
-        if i - last_index_item == delta:
-            validate = False
-            failed_sequence.append(i)
-
-    return validate, failed_sequence
 
 def get_aggregation_metric_thermostat(skip_agg=False):
 
@@ -124,12 +69,7 @@ def get_aggregation_metric_thermostat(skip_agg=False):
     df = thermostat_dataframe_timeframe(thermostat_dataframe,
                                                 dt_start, dt_end)
 
-
-    # For motion detection we must have da
-
-
     df, m = aggregate_thermostat_dataframe(df)
-
 
     cloud_logger.info("Downloading latest realtime weather...")
     realtime_list = list(storage_client.list_blobs(bucket_climacell, prefix='realtime'))
@@ -246,8 +186,6 @@ def get_file_from_bucket(filename):
 @thermostat_aggregation.route('/pull-thermostat-metric/', methods=['POST'])
 def aggregate_metric_thermostat():
 
-
-
     NUM_MESSAGES = 10
 
     # Instantiates a client
@@ -264,6 +202,8 @@ def aggregate_metric_thermostat():
     updates = 0
     delta = timedelta(seconds=10)
     start = utcnow() + timedelta(seconds=1)
+
+    logging.info("Begin pull-thermostat-metric at : {}".format(start.isoformat()))
 
     load_date = utcnow()
 
