@@ -1,0 +1,6 @@
+README.md
+setup.py
+thermostat_agent.egg-info/PKG-INFO
+thermostat_agent.egg-info/SOURCES.txt
+thermostat_agent.egg-info/dependency_links.txt
+thermostat_agent.egg-info/top_level.txt
