@@ -60,7 +60,7 @@ def get_aggregation_metric_thermostat(skip_agg=False):
 
 
     agg2_now = utcnow()
-    dt_end = apply_tz_toronto(floor_date(agg2_now, minutes=15))
+    dt_end = floor_date(agg2_now, minutes=15)
     dt_start = dt_end - timedelta(hours=3)
 
 
