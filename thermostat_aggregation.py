@@ -202,12 +202,13 @@ def aggregate_metric_thermostat():
     updates = 0
     delta = timedelta(seconds=10)
     start = utcnow() + timedelta(seconds=1)
+    start_origin = start
 
     logging.info("Begin pull-thermostat-metric at : {}".format(start.isoformat()))
 
     load_date = utcnow()
 
-    while utcnow() - start < delta:
+    while (utcnow() - start < delta) and (utcnow() - start_origin < timedelta(seconds=120)):
 
         subscriber = pubsub_v1.SubscriberClient()
         # The `subscription_path` method creates a fully qualified identifier
@@ -232,10 +233,14 @@ def aggregate_metric_thermostat():
 
             ack_ids = []
             for message in response.received_messages:
-
+                
+                #########################################
                 # Still receiving msg. Reset the timeout
+                #########################################
                 start = utcnow() + timedelta(seconds=1)
+                #########################################
 
+                
                 if message.message.attributes[
                         'eventType'] == 'OBJECT_FINALIZE' and (
                             message.message.attributes['objectId'].startswith(
