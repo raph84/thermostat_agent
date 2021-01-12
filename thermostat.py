@@ -152,8 +152,8 @@ def get_metric_from_bucket(last=0, pref='thermostat', last_file=None, first_file
 
             # TODO : datetime.fromtimestamp need to have the tz argument
             j['datetime'] = scan_and_apply_tz(datetime.fromtimestamp(
-                                                     j['timestamp']))
-            j['dateobj'] = apply_tz_toronto(datetime.fromtimestamp(j['timestamp']))
+                                                     j['timestamp'], tz=get_tz()))
+            j['dateobj'] = apply_tz_toronto(datetime.fromtimestamp(j['timestamp'], tz=get_tz()))
 
             last_json.append(j)
         except NameError:

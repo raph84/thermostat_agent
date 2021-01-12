@@ -20,12 +20,12 @@ def ceil_dt(dt, delta):
 def ceil_date(date, **kwargs):
     secs = timedelta(**kwargs).total_seconds()
     return datetime.fromtimestamp(date.timestamp() + secs -
-                                  date.timestamp() % secs)
+                                  date.timestamp() % secs, tz=get_tz())
 
 
 def floor_date(date, **kwargs):
     secs = timedelta(**kwargs).total_seconds()
-    return datetime.fromtimestamp(date.timestamp() - date.timestamp() % secs)
+    return datetime.fromtimestamp(date.timestamp() - date.timestamp() % secs, tz=get_tz())
 
 
 def utcnow():
