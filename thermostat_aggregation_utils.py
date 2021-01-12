@@ -7,9 +7,6 @@ import re
 
 from thermal_comfort import ppd
 
-def dofloat(number):
-    return float(number)
-
 
 def get_metric_from_bucket(blob):
 
@@ -23,7 +20,7 @@ def metric_str_to_json(json_str):
 
     last_json = []
     try:
-        j = json.loads(json_str, parse_int=dofloat)
+        j = json.loads(json_str)
 
         #if 'temperature' in j.keys() and j['temperature'] is None:
         #assert j['temperature'] is not None, json_str
@@ -77,6 +74,9 @@ def aggregate_to_dataframe(filename, data, thermostat_dataframe, load_date):
 
     merge = False
 
+    d_dict_list = []
+    d_index_list = []
+
     for d in data:
         if len(thermostat_dataframe) > 0:
             merged = thermostat_dataframe[thermostat_dataframe['filename']==filename]
@@ -108,11 +108,17 @@ def aggregate_to_dataframe(filename, data, thermostat_dataframe, load_date):
 
         d_dict['filename'] = filename
         d_dict['load_date'] = load_date
-        df_data = pd.DataFrame(d_dict, index=[d_dict['dt']])
+
+        d_dict_list.append(d_dict)
+        d_index_list.append(d_dict['dt'])
+        #df_data = pd.DataFrame(d_dict, index=[d_dict['dt']])
 
 
         #thermostat_dataframe = thermostat_dataframe.append(df_data)
-        thermostat_dataframe = pd.concat([thermostat_dataframe, df_data])
+        #thermostat_dataframe = pd.concat([thermostat_dataframe, df_data])
+        d_df = pd.DataFrame(d_dict_list, index=d_index_list)
+        thermostat_dataframe = pd.concat(
+            [thermostat_dataframe, d_df])
 
     return merge, thermostat_dataframe
 
@@ -181,9 +187,14 @@ def value_function_thermostat(i):
                 raise KeyError('location',i)
 
     if i.get('location') == 'house.basement.stove':
+        if not isinstance(i['stove_exhaust_temp'], float):
+            i['stove_exhaust_temp'] = float(i['stove_exhaust_temp'])
+
         i['Coil Power'] = coil_power(i['stove_exhaust_temp'])
     else:
         if i.get('location') == 'house.kitchen' and 'temperature' in i.keys():
+            if not isinstance(i['temperature'], float):
+                i['temperature'] = float(i['temperature'])
             ppd_value = ppd(tdb=i['temperature'],
                             tr=i['temperature'],
                             rh=i['humidity'])
@@ -229,6 +240,8 @@ def value_function_climacell(i):
     for f in field:
         if f != 'dt':
             value_dict[f] = i[f]['value']
+            if f == 'temp' and value_dict[f] is not None:
+                value_dict[f] = float(value_dict[f])
         else:
             value_dict[f] = i[f]
 
@@ -279,6 +292,7 @@ def value_function_basement(i):
             i['temperature'] = t
         else:
             logging.warning("Invalid temperature value : {}".format(i['temperature']))
+
 
     i['temp_basement'] = i['temperature']
     i["Sys Out Temp."] = i['temp_basement']
@@ -398,3 +412,27 @@ def motion_df_resample(agg):
     del m['quantile']
 
     return m
+
+
+def validate_index_sequence(df):
+    delta = timedelta(minutes=15)
+    list_index = df.index.values.tolist()
+    last_index_item = list_index.pop()
+    validate = True
+    failed_sequence = []
+    for i in list_index:
+        if i - last_index_item == delta:
+            validate = False
+            failed_sequence.append(i)
+
+    return validate, failed_sequence
+
+def rename_climacell_columns(data):
+    data.rename(columns={
+        'humidity': 'Outdoor RH',
+        'temp': 'Outdoor Temp.',
+        'surface_shortwave_radiation': 'Direct Solar Rad.',
+        'wind_speed': 'Wind Speed',
+        'wind_direction': 'Wind Direction'
+    },
+                inplace=True)
