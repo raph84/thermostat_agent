@@ -350,7 +350,8 @@ def aggregate_thermostat_dataframe(thermostat_dataframe):
     df.sort_index(inplace=True)
 
     df_motion = motion_df_resample(df)
-
+    
+    df['Sys Out Temp.'] = df['Sys Out Temp.'].apply(lambda x : float(x)).interpolate(method='time')
     df = df.resample('15Min', label='right').mean()
 
     df = df.merge(df_motion, left_index=True, right_index=True)
