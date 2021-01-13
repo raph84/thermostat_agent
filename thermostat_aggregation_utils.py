@@ -360,7 +360,7 @@ def check_thermostat_dataframe_up2date(start_date, thermostat_dataframe):
     t_df_max = utc_to_toronto(thermostat_dataframe.index.max().to_pydatetime())
     now_diff = start_date - t_df_max
     assert now_diff<= timedelta(
-        minutes=3), "thermostat_dataframe data is too old : {}".format(
+        seconds=240), "thermostat_dataframe data is too old : {}".format(
             now_diff.total_seconds())
 
     return True
