@@ -116,7 +116,7 @@ def get_aggregation_metric_thermostat(skip_agg=False):
     hourly_agg = hourly_agg.resample('15Min').interpolate(method='linear')
     hourly_agg = hourly_agg.merge(m, left_index=True, right_index=True)
     hourly_agg = hourly_agg.drop(index=df.index, errors='ignore')
-    hourly_agg = hourly_agg.head(13)
+    hourly_agg = hourly_agg.head(12)
     #del hourly_agg['dt']
 
     if len(hourly_agg) < 13:
