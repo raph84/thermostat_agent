@@ -61,7 +61,7 @@ def get_aggregation_metric_thermostat(skip_agg=False):
 
     agg2_now = utcnow()
     dt_end = floor_date(agg2_now, minutes=15)
-    dt_start = dt_end - timedelta(hours=3)
+    dt_start = dt_end - timedelta(hours=5)
 
 
     check_thermostat_dataframe_up2date(dt_end, thermostat_dataframe)
@@ -99,7 +99,7 @@ def get_aggregation_metric_thermostat(skip_agg=False):
 
 
     hourly_start = dt_start - timedelta(days=1)
-    hourly_end = dt_end + timedelta(hours=14)
+    hourly_end = dt_end + timedelta(hours=18)
 
     hourly_list = list(storage_client.list_blobs(bucket_climacell, prefix='hourly'))
     hourly_list.reverse()
@@ -108,6 +108,8 @@ def get_aggregation_metric_thermostat(skip_agg=False):
     hourly_agg = aggregator(hourly_list, date_function_climacell, value_function_climacell, date_selection_hourly, hourly_end, hourly_start)
     rename_climacell_columns(hourly_agg)
 
+    # TODO : Duplicate? drop first
+
     #Sometime climacell has missing values
     if hourly_agg.isnull().sum().sum() > 0:
         logger.warn('NaN value in hourly weather forecast : {} --- {}'.format(
@@ -115,7 +117,7 @@ def get_aggregation_metric_thermostat(skip_agg=False):
         hourly_agg.interpolate(limit=6, inplace=True)
     hourly_agg = hourly_agg.resample('15Min').interpolate(method='linear')
     hourly_agg = hourly_agg.merge(m, left_index=True, right_index=True)
-    hourly_agg = hourly_agg.drop(index=df.index, errors='ignore')
+    hourly_agg = hourly_agg.copy(deep=True)[hourly_agg.index > df.index.max()]
     hourly_agg = hourly_agg.head(12)
     #del hourly_agg['dt']
 

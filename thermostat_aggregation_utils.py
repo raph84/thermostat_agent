@@ -384,7 +384,7 @@ def motion_df_resample(agg):
     x_item = {}
 
     # Add 12 episodes of 15 minutes each
-    episode = 12
+    episode = 15
     # Currently resampled at 3 minutes per episodes
     episode = episode * 5
 
