@@ -372,7 +372,7 @@ def check_thermostat_dataframe_up2date(start_date, thermostat_dataframe):
 
 def motion_df_resample(agg):
 
-    m = agg.copy(deep=True)[['motion']]
+    m = agg[agg['location'] == 'house.kitchen'].copy(deep=True)[['motion']]
     m['Occupancy Flag'] = m['motion']
     del m['motion']
     m['Occupancy Flag'] = m['Occupancy Flag'].apply(lambda x: 1 if x else 0)
@@ -414,7 +414,7 @@ def motion_df_resample(agg):
     m['Occupancy Flag'] = m.apply(
         lambda x: True if x['Occupancy Flag'] > x['quantile'] else False,
         axis=1)
-    del m['quantile']
+    #del m['quantile']
 
     return m
 
