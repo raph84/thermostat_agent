@@ -113,7 +113,7 @@ resource "google_cloud_run_service" "default" {
 
         env {
           name  = "DECISION"
-          value = "False"
+          value = "True"
         }
 
         env {
