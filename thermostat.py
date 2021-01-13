@@ -518,7 +518,7 @@ def next_action():
     next_action_result = dict(
         chain.from_iterable(d.items() for d in (mpc_dict, h_d)))
 
-    aggregate_next_action_result(next_action_result)
+    aggregate_next_action_result(next_action_result, parse_date(body['date']))
 
     return next_action_result
 

@@ -139,13 +139,13 @@ def get_aggregation_metric_thermostat(skip_agg=False):
 
     return df, hourly_agg
 
-def aggregate_next_action_result(next_action):
+def aggregate_next_action_result(next_action, action_date):
 
     # Instantiates a client
     storage_client = storage.Client()
     # The name for the new bucket
     bucket = storage_client.bucket(bucket_name)
-    b = bucket.get_blob(FILENAME)
+    b = bucket.get_blob(THERMOSTAT_DATAFRAME)
     b.temporary_hold = True
     b.patch()
     pickle_load = b.download_as_bytes()
@@ -155,15 +155,15 @@ def aggregate_next_action_result(next_action):
 
     #TODO assert now +- 30 minutes
 
-    df_next_action = pd.DataFrame(next_action, index=[last_item_index])
-    agg2.update(df_next_action)
+    df_next_action = pd.DataFrame(next_action, index=[action_date])
+    agg2.append(df_next_action)
     #agg2 = agg2[agg2['heating_state'].notna()]
 
-    cloud_logger.info(agg2.tail(1).to_dict('records'))
+    cloud_logger.info(agg2.tail(2).to_dict('records'))
 
     cloud_logger.info("Uploading next_action result aggregation...")
     pickle_dump = pickle.dumps(agg2)
-    b = bucket.get_blob(FILENAME)
+    b = bucket.get_blob(THERMOSTAT_DATAFRAME)
     b.temporary_hold = False
     b.patch()
     b.upload_from_string(data=pickle_dump, content_type='text/plain')
@@ -233,14 +233,14 @@ def aggregate_metric_thermostat():
 
             ack_ids = []
             for message in response.received_messages:
-                
+
                 #########################################
                 # Still receiving msg. Reset the timeout
                 #########################################
                 start = utcnow() + timedelta(seconds=1)
                 #########################################
 
-                
+
                 if message.message.attributes[
                         'eventType'] == 'OBJECT_FINALIZE' and (
                             message.message.attributes['objectId'].startswith(
