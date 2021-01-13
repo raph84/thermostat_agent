@@ -287,6 +287,7 @@ def aggregate_metric_thermostat():
     blob_thermostat_metric_data.patch()
 
     if updates > 0:
+
         thermostat_dataframe = thermostat_dataframe.sort_index()
         logging.info("Saving thermostat_dataframe...")
         pickle_dump = pickle.dumps(thermostat_dataframe)

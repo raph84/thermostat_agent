@@ -202,6 +202,9 @@ def value_function_thermostat(i):
 
             i['PPD'] = ppd_value['ppd']
             i["Indoor Temp. Setpoint"] = get_set_point(i['dt'])
+            i["Indoor Temp."] = i['temperature']
+
+            del i['temperature']
 
             i['MA Temp.'] = 18
             i['Htg SP'] = 22
