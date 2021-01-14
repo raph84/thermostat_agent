@@ -414,7 +414,7 @@ def motion_df_resample(agg):
     m['Occupancy Flag'] = m.apply(
         lambda x: True if x['Occupancy Flag'] > x['quantile'] else False,
         axis=1)
-    #del m['quantile']
+    del m['quantile']
 
     return m
 
