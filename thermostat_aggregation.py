@@ -20,7 +20,6 @@ from thermostat_aggregation_utils import *
 thermostat_aggregation = Blueprint('thermostat_aggregation', __name__)
 
 
-cloud_logger = logging
 
 FILENAME = "aggregate.p"
 THERMOSTAT_DATAFRAME = "_thermostat_metric_data.p"
@@ -71,7 +70,7 @@ def get_aggregation_metric_thermostat(skip_agg=False):
 
     df, m = aggregate_thermostat_dataframe(df)
 
-    cloud_logger.info("Downloading latest realtime weather...")
+    logging.info("Downloading latest realtime weather...")
     realtime_list = list(storage_client.list_blobs(bucket_climacell, prefix='realtime'))
     realtime_list.reverse()
     realtime_agg = aggregator(realtime_list, date_function_climacell,
@@ -84,7 +83,9 @@ def get_aggregation_metric_thermostat(skip_agg=False):
     rename_climacell_columns(realtime_agg)
     nan_realtime = realtime_agg.isnull().sum().sum()
     if nan_realtime > 0:
-        logger.warn("NaN values in realtime_agg : {}. interpolate to fill the gaps...".format(nan_realtime))
+        logging.warn(
+            "NaN values in realtime_agg : {}. interpolate to fill the gaps...".
+            format(nan_realtime))
         realtime_agg.interpolate(limit=6, inplace=True)
         nan_realtime = realtime_agg.isnull().sum().sum()
 
@@ -104,7 +105,7 @@ def get_aggregation_metric_thermostat(skip_agg=False):
     hourly_list = list(storage_client.list_blobs(bucket_climacell, prefix='hourly'))
     hourly_list.reverse()
 
-    cloud_logger.info("Downloading latest hourly weather forecast...")
+    logging.info("Downloading latest hourly weather forecast...")
     hourly_agg = aggregator(hourly_list, date_function_climacell, value_function_climacell, date_selection_hourly, hourly_end, hourly_start)
     rename_climacell_columns(hourly_agg)
 
@@ -112,7 +113,7 @@ def get_aggregation_metric_thermostat(skip_agg=False):
 
     #Sometime climacell has missing values
     if hourly_agg.isnull().sum().sum() > 0:
-        logger.warn('NaN value in hourly weather forecast : {} --- {}'.format(
+        logging.warn('NaN value in hourly weather forecast : {} --- {}'.format(
             hourly_agg.isnull().sum().sum(),hourly_agg))
         hourly_agg.interpolate(limit=6, inplace=True)
     hourly_agg = hourly_agg.resample('15Min').interpolate(method='linear')
@@ -136,7 +137,7 @@ def get_aggregation_metric_thermostat(skip_agg=False):
     assert df_validate, '; '.join(x.to_pydatetime().isoformat() for x in df_failed_sequence)
 
 
-    cloud_logger.info("Data aggregation done.")
+    logging.info("Data aggregation done.")
 
 
     return df, hourly_agg
@@ -161,9 +162,9 @@ def aggregate_next_action_result(next_action, action_date):
     agg2.append(df_next_action)
     #agg2 = agg2[agg2['heating_state'].notna()]
 
-    cloud_logger.info(agg2.tail(2).to_dict('records'))
+    logging.info(agg2.tail(2).to_dict('records'))
 
-    cloud_logger.info("Uploading next_action result aggregation...")
+    logging.info("Uploading next_action result aggregation...")
     pickle_dump = pickle.dumps(agg2)
     b = bucket.get_blob(THERMOSTAT_DATAFRAME)
     b.temporary_hold = False
