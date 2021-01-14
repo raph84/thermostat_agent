@@ -86,9 +86,11 @@ def get_aggregation_metric_thermostat(skip_agg=False):
         logging.warning(
             "NaN values in realtime_agg : {}. interpolate to fill the gaps...".
             format(nan_realtime))
-        realtime_agg.interpolate(limit=6, inplace=True)
+        realtime_agg.interpolate(limit=8, inplace=True)
         nan_realtime = realtime_agg.isnull().sum().sum()
 
+    if nan_realtime > 0:
+        logger.warning("Still have NaN values in realtime climacell data : {}".format(nan_realtime))
     #assert nan_realtime == 0, "Still have NaN values in realtime climacell data : {}".format(
     #    nan_realtime)
 
@@ -123,8 +125,8 @@ def get_aggregation_metric_thermostat(skip_agg=False):
     hourly_agg = hourly_agg.head(12)
     #del hourly_agg['dt']
 
-    if len(hourly_agg) < 13:
-        logging.error(
+    if len(hourly_agg) < 12:
+        logging.warning(
             "Not enought hourly forecast : {}. MPC model will likely fail.".
             format(len(hourly_agg)))
 
