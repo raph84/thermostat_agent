@@ -89,7 +89,7 @@ def get_aggregation_metric_thermostat(skip_agg=False):
         realtime_agg.interpolate(limit=6, inplace=True)
         nan_realtime = realtime_agg.isnull().sum().sum()
 
-    assert nan_realtime == 0, "Still have NaN values in realtime climacell data : {}".format(realtime_agg.is_null().sum())
+    assert nan_realtime == 0, "Still have NaN values in realtime climacell data : {}".format(realtime_agg.isnull().sum())
 
 
     df = pd.merge_asof(df, realtime_agg,
