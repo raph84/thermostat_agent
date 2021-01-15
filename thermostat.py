@@ -466,8 +466,8 @@ def digest(
     return result["digest"]
 
 
-url_gnu_rl = "https://gnu-rl-agent-ppb6otnevq-uk.a.run.app"
-#url_gnu_rl = "http://127.0.0.1:5001"
+#url_gnu_rl = "https://gnu-rl-agent-ppb6otnevq-uk.a.run.app"
+url_gnu_rl = "http://127.0.0.1:5001"
 
 
 @app.route("/next-action")
@@ -511,6 +511,11 @@ def next_action():
 
 
     logging.info("Next Action Result : {}".format(resp.json()))
+
+    assert resp.json(
+    )['sat_stpt'] > 0, "The model is not supporsed to produce an action = 0 ---> {}".format(
+        resp.json()['sat_stpt'])
+
     logging.info("NextAction_Setpoint:{}".format(
         resp.json()['sat_stpt']))
 
