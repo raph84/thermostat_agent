@@ -33,6 +33,7 @@ import re
 import numpy as np
 from itertools import chain
 import sys
+import warnings
 
 
 from utils import utcnow, ceil_dt, get_tz, get_utc_tz
@@ -350,7 +351,7 @@ def get_weather_hourly(last=1, hourly_start=None, hourly_end=None):
     return resp.json()
 
 def get_set_point(date):
-    if date.hour >= 21 or (date.hour <= 5 and date.minute >= 30):
+    if date.hour >= 21 or date.hour <= 5:
         return 18
     else:
         return 22
@@ -389,7 +390,7 @@ def digest():
     realtime_end = request.args.get('realtime_end', None)
     skip_agg = request.args.get('skip_agg', False)
 
-    return digest(hourly_start,
+    return _digest(hourly_start,
                     hourly_end,
                     realtime_start,
                     realtime_end,
@@ -416,7 +417,7 @@ def coil_power(stove_exhaust_temp):
     return coil_power
 
 
-def digest(
+def _digest(
 
         hourly_start=None,  #TODO remove
         hourly_end=None,  #TODO remove
@@ -483,7 +484,7 @@ def next_action():
         skip_agg = False
 
 
-    body = digest(hourly_start, hourly_end, realtime_start, realtime_end, skip_agg=skip_agg)
+    body = _digest(hourly_start, hourly_end, realtime_start, realtime_end, skip_agg=skip_agg)
     url_query = url_gnu_rl + '/mpc/'
     logging.info("Calling MPC model...")
     resp = query(url_query, url_gnu_rl, 'POST', body)
