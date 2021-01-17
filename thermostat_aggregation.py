@@ -123,6 +123,11 @@ def get_aggregation_metric_thermostat(skip_agg=False):
     hourly_agg = hourly_agg.merge(m, left_index=True, right_index=True)
     hourly_agg = hourly_agg.copy(deep=True)[hourly_agg.index > df.index.max()]
     hourly_agg = hourly_agg.head(12)
+
+
+    hourly_agg['Indoor Temp. Setpoint'] = hourly_agg.index.to_series().apply(
+        lambda dt : get_set_point(dt))
+
     #del hourly_agg['dt']
 
     if len(hourly_agg) < 12:
