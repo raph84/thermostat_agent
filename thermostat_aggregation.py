@@ -90,7 +90,7 @@ def get_aggregation_metric_thermostat(skip_agg=False):
         nan_realtime = realtime_agg.isnull().sum().sum()
 
     if nan_realtime > 0:
-        logger.warning("Still have NaN values in realtime climacell data : {}".format(nan_realtime))
+        logging.warning("Still have NaN values in realtime climacell data : {}".format(nan_realtime))
     #assert nan_realtime == 0, "Still have NaN values in realtime climacell data : {}".format(
     #    nan_realtime)
 
