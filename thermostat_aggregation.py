@@ -43,7 +43,7 @@ def request_get_aggregation():
     }
 
 
-def get_aggregation_metric_thermostat(skip_agg=False):
+def get_aggregation_metric_thermostat(dt_end):
 
     # Instantiates a client
     storage_client = storage.Client()
@@ -57,9 +57,6 @@ def get_aggregation_metric_thermostat(skip_agg=False):
     pickle_load = b.download_as_bytes()
     thermostat_dataframe = pickle.loads(pickle_load)
 
-
-    agg2_now = utcnow()
-    dt_end = floor_date(agg2_now, minutes=15)
     dt_start = dt_end - timedelta(hours=5)
 
 

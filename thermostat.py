@@ -13,7 +13,7 @@ from flask import Flask, url_for, request
 import json
 from google.cloud import pubsub_v1
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from google.cloud import secretmanager
 from google.cloud import storage
 from google.oauth2 import id_token
@@ -34,10 +34,9 @@ import numpy as np
 from itertools import chain
 import sys
 import warnings
+import copy
 
-
-from utils import utcnow, ceil_dt, get_tz, get_utc_tz
-from yadt import scan_and_apply_tz, utc_to_toronto, apply_tz_toronto, parse_date
+from my_quick_dt_util import *
 
 from thermostat_iot_control import thermostat_iot_control
 from thermostat_decision import heating_decision
@@ -389,12 +388,13 @@ def digest():
     realtime_start = request.args.get('realtime_start', None)
     realtime_end = request.args.get('realtime_end', None)
     skip_agg = request.args.get('skip_agg', False)
+    last = int(request.args.get('last', 1))
 
-    return _digest(hourly_start,
-                    hourly_end,
-                    realtime_start,
-                    realtime_end,
-                    skip_agg)
+    result = digest_payload(last=last)
+
+
+    return result
+
 
 def coil_power(stove_exhaust_temp):
     """ Deprecated
@@ -416,18 +416,30 @@ def coil_power(stove_exhaust_temp):
 
     return coil_power
 
+def digest_payload(last=1):
+    agg2_now = utcnow()
+    dt_end = floor_date(agg2_now, minutes=15)
+
+    digest_list = []
+
+    for x in range(last):
+        d = _digest(dt_end=dt_end)
+        digest_list.append(copy.deepcopy(d))
+        dt_end = dt_end - timedelta(minutes=15)
+
+    return {'digests': digest_list}
+
 
 def _digest(
-
-        hourly_start=None,  #TODO remove
-        hourly_end=None,  #TODO remove
-        realtime_start=None,  #TODO remove
-        realtime_end=None,
+        dt_end=None,
         hourly_last=1,
-        realtime_last=14,
-        skip_agg = False):
+        realtime_last=14):
 
-    agg2, hourly = get_aggregation_metric_thermostat(skip_agg)
+    if dt_end is None:
+        agg2_now = utcnow()
+        dt_end = floor_date(agg2_now, minutes=15)
+
+    agg2, hourly = get_aggregation_metric_thermostat(dt_end)
     #agg2 = agg2.replace({np.nan: None})
     # agg2['dt'] = agg2['dt'].apply(
     #     lambda x: utc_to_toronto(x.to_pydatetime()).isoformat())
@@ -473,18 +485,7 @@ url_gnu_rl = "https://gnu-rl-agent-ppb6otnevq-uk.a.run.app"
 
 @app.route("/next-action")
 def next_action():
-    hourly_start = request.args.get('hourly_start', None)
-    hourly_end = request.args.get('hourly_end', None)
-    realtime_start = request.args.get('realtime_start', None)
-    realtime_end = request.args.get('realtime_end', None)
-    skip_agg = request.args.get('skip_agg', False)
-    if skip_agg == "True":
-        skip_agg = True
-    else:
-        skip_agg = False
-
-
-    body = _digest(hourly_start, hourly_end, realtime_start, realtime_end, skip_agg=skip_agg)
+    body = digest_payload(last=2)
     url_query = url_gnu_rl + '/mpc/'
     logging.info("Calling MPC model...")
     resp = query(url_query, url_gnu_rl, 'POST', body)
