@@ -44,6 +44,8 @@ steps:
 # [START tf-plan]
 - id: 'tf plan'
   name: 'hashicorp/terraform:0.13.5'
+  #env: 
+  #  - 'TF_VAR_runinvokers=$_RUNINVOKERS'
   entrypoint: 'sh'
   args: 
   - '-c'
@@ -61,7 +63,6 @@ steps:
           echo "*************** TERRAFOM PLAN ******************"
           echo "******* At environment: ${env} ********"
           echo "*************************************************"
-          export $TF_VAR_runinvokers=$_RUNINVOKERS
           terraform plan || exit 1
           cd ../../
         done
@@ -71,6 +72,8 @@ steps:
 # [START tf-apply]
 - id: 'tf apply'
   name: 'hashicorp/terraform:0.13.5'
+  #env: 
+  #  - 'TF_VAR_runinvokers=$_RUNINVOKERS'
   entrypoint: 'sh'
   args: 
   - '-c'
