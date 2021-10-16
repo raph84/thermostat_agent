@@ -12,7 +12,7 @@ WORKDIR $APP_HOME
 COPY . ./
 
 RUN apt-get update && \
-     apt-get install git
+     apt-get install -y git
 
 # Install production dependencies.
 RUN pip install Flask gunicorn && \
