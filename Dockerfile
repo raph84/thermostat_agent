@@ -11,6 +11,9 @@ ENV APP_HOME /app
 WORKDIR $APP_HOME
 COPY . ./
 
+RUN apt-get update && \
+     apt-get install git
+
 # Install production dependencies.
 RUN pip install Flask gunicorn && \
         pip install -r ./requirements.txt
