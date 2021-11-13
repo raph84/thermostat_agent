@@ -1,11 +1,11 @@
 import pandas as pd
 import json
-from yadt import utc_to_toronto, utcnow, parse_date, apply_tz_toronto, get_tz
+from .yadt import utc_to_toronto, utcnow, parse_date, apply_tz_toronto, get_tz
 from datetime import datetime, timedelta
 import logging
 import re
 
-from thermal_comfort import ppd
+from .thermal_comfort import ppd
 
 
 def get_metric_from_bucket(blob):
@@ -70,56 +70,69 @@ def aggregator_item(filename, item, date_function, value_function):
     return metric_dict
 
 
-def aggregate_to_dataframe(filename, data, thermostat_dataframe, load_date):
+def aggregate_to_dataframe(data, thermostat_dataframe):
 
     merge = False
 
     d_dict_list = []
     d_index_list = []
 
-    for d in data:
-        if len(thermostat_dataframe) > 0:
-            merged = thermostat_dataframe[thermostat_dataframe['filename']==filename]
-            if len(thermostat_dataframe) == 0 or len(merged) == 0:
-                merge = True
+    for dd in data:
+        filename = dd['filename']
+        d = dd['data']
+        load_date = dd['load_date']
+
+        print(d)
+
+        for ddd in d:
+
+            if thermostat_dataframe is not None and len(thermostat_dataframe) > 0:
+                logging.debug('Thermostat dataframe len {}'.format(len(thermostat_dataframe)))
+                merged = thermostat_dataframe[thermostat_dataframe['filename']==filename]
+                if len(thermostat_dataframe) == 0 or len(merged) == 0:
+                    merge = True
+                else:
+                    continue
+
+            if (filename.startswith("environment_")):
+                date_function = date_function_basement
+                value_function = value_function_basement
             else:
+                date_function = date_function_thermostat
+                value_function = value_function_thermostat
+
+
+            try:
+
+                d_dict = aggregator_item(filename, ddd, date_function,
+                                        value_function)
+
+            except KeyError as ke:
+                logging.warning("A key is missing : {} ---- {}".format(
+                    d, ke))
                 continue
-
-        if (filename.startswith("environment_")):
-            date_function = date_function_basement
-            value_function = value_function_basement
-        else:
-            date_function = date_function_thermostat
-            value_function = value_function_thermostat
+                #raise ke
 
 
-        try:
-            d_dict = aggregator_item(filename, d, date_function,
-                                    value_function)
+            #if 'temperature' not in d_dict.keys() or isinstance(d_dict['temperature'],float) == False:
+            #    continue
 
-        except KeyError as ke:
-            logging.warning("A key is missing : {} ---- {}".format(
-                d, ke))
-            continue
-            #raise ke
+            d_dict['filename'] = filename
+            d_dict['load_date'] = load_date
 
-
-        #if 'temperature' not in d_dict.keys() or isinstance(d_dict['temperature'],float) == False:
-        #    continue
-
-        d_dict['filename'] = filename
-        d_dict['load_date'] = load_date
-
-        d_dict_list.append(d_dict)
-        d_index_list.append(d_dict['dt'])
-        #df_data = pd.DataFrame(d_dict, index=[d_dict['dt']])
+            d_dict_list.append(d_dict)
+            d_index_list.append(d_dict['dt'])
+            #df_data = pd.DataFrame(d_dict, index=[d_dict['dt']])
 
 
-        #thermostat_dataframe = thermostat_dataframe.append(df_data)
-        #thermostat_dataframe = pd.concat([thermostat_dataframe, df_data])
+            #thermostat_dataframe = thermostat_dataframe.append(df_data)
+            #thermostat_dataframe = pd.concat([thermostat_dataframe, df_data])
     d_df = pd.DataFrame(d_dict_list, index=d_index_list)
-    thermostat_dataframe = pd.concat(
-        [thermostat_dataframe, d_df])
+    if thermostat_dataframe is None:
+        thermostat_dataframe = pd.DataFrame(d_df)
+    else:
+        thermostat_dataframe = pd.concat(
+            [thermostat_dataframe, d_df])
 
     return merge, thermostat_dataframe
 
@@ -214,6 +227,7 @@ def value_function_thermostat(i):
     if 'timestamp' in i.keys():
         del i['timestamp']
 
+
     return i
 
 
@@ -274,6 +288,8 @@ def find_temperature_original_payload(original_payload):
         t = t.groups()
         if len(t) > 0:
             temperature = float(t[0])
+    else:
+        logging.warning("Temperature not found in original payload. {}".format(original_payload))
 
 
 
@@ -290,12 +306,22 @@ def value_function_basement(i):
                     "Cannot fin temperature value from original_payload : {}".
                     format(i['original_payload']))
 
+    if isinstance(i['temperature'], list):
+        logging.warning("Temperature stored in an array! {}".format(i))
+
+        if len(i['temperature']) > 1:
+            logging.warning("Strange payload {}".format(i))
+
+        # temperature is probably a str so next if is important too
+        i['temperature'] = i['temperature'][0]
+
     if isinstance(i['temperature'], str):
-        t = find_temperature_original_payload(i['temperature'])
+        t = find_temperature_original_payload(i['original_payload'])
         if isinstance(t, float):
             i['temperature'] = t
         else:
             logging.warning("Invalid temperature value : {}".format(i['temperature']))
+
 
 
     i['temp_basement'] = i['temperature']
@@ -328,7 +354,7 @@ def coil_power(stove_exhaust_temp):
     else:
         coil_power = 0
 
-    return coil_power
+    return round(coil_power,2)
 
 
 def thermostat_dataframe_timeframe(thermostat_dataframe, dt_start, dt_end):
@@ -350,7 +376,7 @@ def aggregate_thermostat_dataframe(thermostat_dataframe):
     df.sort_index(inplace=True)
 
     df_motion = motion_df_resample(df)
-    
+
     df['Sys Out Temp.'] = df['Sys Out Temp.'].apply(lambda x : float(x)).interpolate(method='time')
     df = df.resample('15Min', label='right').mean()
 

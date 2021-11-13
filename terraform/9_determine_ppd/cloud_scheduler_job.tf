@@ -22,7 +22,7 @@ resource "google_cloud_scheduler_job" "pull-thermostat-metric" {
     }
   }
 
-  depends_on = [google_cloud_run_service.default]
+  #depends_on = [google_cloud_run_service.default]
 }
 
 resource "google_cloud_scheduler_job" "job" {

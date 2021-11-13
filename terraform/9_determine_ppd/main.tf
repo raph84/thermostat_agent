@@ -74,115 +74,115 @@ provider "docker" {
     username = "oauth2accesstoken"
     password = data.google_client_config.default.access_token
   }
-  #host = "npipe:////.//pipe//docker_engine"
+  host = "npipe:////.//pipe//docker_engine"
 }
 
-data "docker_registry_image" "thermostat-agent" {
-  name = "gcr.io/${local.project_id}/thermostat-agent"
-}
+# data "docker_registry_image" "thermostat-agent" {
+#   name = "gcr.io/${local.project_id}/thermostat-agent"
+# }
 
-data "google_container_registry_image" "thermostat-agent-latest" {
-  name    = "thermostat-agent"
-  project = local.project_id
-  digest  = data.docker_registry_image.thermostat-agent.sha256_digest
-}
+# data "google_container_registry_image" "thermostat-agent-latest" {
+#   name    = "thermostat-agent"
+#   project = local.project_id
+#   digest  = data.docker_registry_image.thermostat-agent.sha256_digest
+# }
 
-output "image_url" {
-  value = data.google_container_registry_image.thermostat-agent-latest.image_url
-}
+# output "image_url" {
+#   value = data.google_container_registry_image.thermostat-agent-latest.image_url
+# }
 
-resource "google_cloud_run_service" "default" {
-  location = "us-east4"
-  name     = "thermostat-agent"
-  project  = "thermostat-292016"
-  template {
-    spec {
-      container_concurrency = 1
-      service_account_name  = "thermostat-agent@thermostat-292016.iam.gserviceaccount.com"
-      timeout_seconds       = 280
+# resource "google_cloud_run_service" "default" {
+#   location = "us-east4"
+#   name     = "thermostat-agent"
+#   project  = "thermostat-292016"
+#   template {
+#     spec {
+#       container_concurrency = 1
+#       service_account_name  = "thermostat-agent@thermostat-292016.iam.gserviceaccount.com"
+#       timeout_seconds       = 280
 
-      containers {
-        args    = []
-        command = []
-        image   = data.google_container_registry_image.thermostat-agent-latest.image_url
+#       containers {
+#         args    = []
+#         command = []
+#         image   = data.google_container_registry_image.thermostat-agent-latest.image_url
 
-        env {
-          name  = "PROJECT_ID"
-          value = "thermostat-292016"
-        }
+#         env {
+#           name  = "PROJECT_ID"
+#           value = "thermostat-292016"
+#         }
 
-        env {
-          name  = "DECISION"
-          value = "True"
-        }
+#         env {
+#           name  = "DECISION"
+#           value = "True"
+#         }
 
-        env {
-          name  = "LEVEL"
-          value = "info"
-        }
+#         env {
+#           name  = "LEVEL"
+#           value = "info"
+#         }
 
-        env {
-          name  = "ACTION_THRESHOLD"
-          value = "0.75"
-        }
+#         env {
+#           name  = "ACTION_THRESHOLD"
+#           value = "0.75"
+#         }
 
-        ports {
-          container_port = 8080
-        }
+#         ports {
+#           container_port = 8080
+#         }
 
-        resources {
-          limits = {
-            "cpu"    = "1000m"
-            "memory" = "700Mi"
-          }
-          requests = {}
-        }
-      }
-    }
-  }
-}
+#         resources {
+#           limits = {
+#             "cpu"    = "1000m"
+#             "memory" = "700Mi"
+#           }
+#           requests = {}
+#         }
+#       }
+#     }
+#   }
+# }
 
-output "url" {
-  value = google_cloud_run_service.default.status[0].url
-}
+# output "url" {
+#   value = google_cloud_run_service.default.status[0].url
+# }
 
-resource "google_cloud_run_service_iam_member" "member" {
-  project  = local.project_id
-  service  = "climacell-agent"
-  role     = "roles/run.invoker"
-  location = "us-east4"
-  member   = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
+# resource "google_cloud_run_service_iam_member" "member" {
+#   project  = local.project_id
+#   service  = "climacell-agent"
+#   role     = "roles/run.invoker"
+#   location = "us-east4"
+#   member   = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
 
-}
-resource "google_cloud_run_service_iam_member" "iam_thermostat-iot" {
-  project  = local.project_id
-  service  = "thermostat-agent"
-  role     = "roles/run.invoker"
-  location = "us-east4"
-  member   = "serviceAccount:thermostat-iot@raph-iot.iam.gserviceaccount.com"
-}
-resource "google_cloud_run_service_iam_member" "thermostat-agent-id" {
-  project  = local.project_id
-  service  = "thermostat-agent"
-  role     = "roles/run.invoker"
-  location = "us-east4"
-  member   = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
-  ## Identity used by Cloud Scheduler to invoke next_action
-}
-resource "google_cloud_run_service_iam_member" "iam-api-call" {
-  project  = local.project_id
-  service  = "thermostat-agent"
-  role     = "roles/run.invoker"
-  location = "us-east4"
-  member   = join(":", ["serviceAccount", google_service_account.api-call.email])
-}
-resource "google_cloud_run_service_iam_member" "api-call-climacell" {
-  project  = local.project_id
-  service  = "climacell-agent"
-  role     = "roles/run.invoker"
-  location = "us-east4"
-  member   = join(":", ["serviceAccount", google_service_account.api-call.email])
-}
+# }
+# resource "google_cloud_run_service_iam_member" "iam_thermostat-iot" {
+#   project  = local.project_id
+#   service  = "thermostat-agent"
+#   role     = "roles/run.invoker"
+#   location = "us-east4"
+#   member   = "serviceAccount:thermostat-iot@raph-iot.iam.gserviceaccount.com"
+# }
+# resource "google_cloud_run_service_iam_member" "thermostat-agent-id" {
+#   project  = local.project_id
+#   service  = "thermostat-agent"
+#   role     = "roles/run.invoker"
+#   location = "us-east4"
+#   member   = join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
+#   ## Identity used by Cloud Scheduler to invoke next_action
+# }
+# resource "google_cloud_run_service_iam_member" "iam-api-call" {
+#   project  = local.project_id
+#   service  = "thermostat-agent"
+#   role     = "roles/run.invoker"
+#   location = "us-east4"
+#   member   = join(":", ["serviceAccount", google_service_account.api-call.email])
+# }
+# resource "google_cloud_run_service_iam_member" "api-call-climacell" {
+#   project  = local.project_id
+#   service  = "climacell-agent"
+#   role     = "roles/run.invoker"
+#   location = "us-east4"
+#   member   = join(":", ["serviceAccount", google_service_account.api-call.email])
+# }
 
 
 
@@ -211,12 +211,42 @@ resource "google_storage_bucket" "thermostat_metric_data" {
   }
   location                    = "US-EAST4"
   name                        = "thermostat_metric_data"
-  project                     = "us-east4"
+  project                     = local.project_id
   storage_class               = "STANDARD"
   uniform_bucket_level_access = true
 
   versioning {
-    enabled = true
+    enabled = false
+  }
+}
+
+resource "google_storage_bucket" "thermostat_metric_data_temp" {
+  labels = {
+    "project" = "thermostat"
+  }
+  location                    = "US-EAST4"
+  name                        = "thermostat_metric_data_temp"
+  project                     = local.project_id
+  storage_class               = "STANDARD"
+  uniform_bucket_level_access = true
+
+  versioning {
+    enabled = false
+  }
+}
+
+resource "google_storage_bucket" "dataflow-workdir" {
+  labels = {
+    "project" = "thermostat"
+  }
+  location                    = "US-EAST4"
+  name                        = "dataflow-workdir"
+  project                     = local.project_id
+  storage_class               = "STANDARD"
+  uniform_bucket_level_access = true
+
+  versioning {
+    enabled = false
   }
 }
 
@@ -233,6 +263,7 @@ resource "google_pubsub_topic" "thermostat_metric_storage" {
   #   ]
   # }
 }
+
 
 resource "google_storage_notification" "notification" {
   bucket         = google_storage_bucket.thermostat_metric_data.name
@@ -327,7 +358,24 @@ resource "google_storage_bucket_iam_binding" "thermostat_metric_data-ObjectAdmin
   bucket = google_storage_bucket.thermostat_metric_data.name
   role   = "roles/storage.objectAdmin"
   members = [
-    join(":", ["serviceAccount", google_service_account.thermostat-agent.email])
+    join(":", ["serviceAccount", google_service_account.thermostat-agent.email]),
+    join(":", ["serviceAccount", google_service_account.thermostat-bigquery.email])
+  ]
+}
+
+resource "google_storage_bucket_iam_binding" "thermostat_metric_data_temp-ObjectAdmin" {
+  bucket = google_storage_bucket.thermostat_metric_data_temp.name
+  role   = "roles/storage.objectAdmin"
+  members = [
+    join(":", ["serviceAccount", google_service_account.thermostat-bigquery.email])
+  ]
+}
+
+resource "google_storage_bucket_iam_binding" "dataflow_workdir-ObjectAdmin" {
+  bucket = google_storage_bucket.dataflow-workdir.name
+  role   = "roles/storage.objectAdmin"
+  members = [
+    join(":", ["serviceAccount", google_service_account.thermostat-bigquery.email])
   ]
 }
 
@@ -337,32 +385,32 @@ resource "google_service_account" "thermostat-bigquery" {
   account_id = "thermostat-bigquery"
 }
 
-data "google_cloudfunctions_function" "data-accumulation-import" {
-  project = local.project_id
-  region = "us-east4"
-  name = "accumulation_import"
-}
+# data "google_cloudfunctions_function" "data-accumulation-import" {
+#   project = local.project_id
+#   region = "us-east4"
+#   name = "accumulation_import"
+# }
 
-output "accumulation_import" {
-  value = data.google_cloudfunctions_function.data-accumulation-import.name
-}
+# output "accumulation_import" {
+#   value = data.google_cloudfunctions_function.data-accumulation-import.name
+# }
 
-resource "google_cloudfunctions_function_iam_binding" "accumulation-import" {
-  project  = local.project_id
-  region = "us-east4"
-  cloud_function = data.google_cloudfunctions_function.data-accumulation-import.name
-  role     = "roles/cloudfunctions.invoker"
-  members   = [join(":", ["serviceAccount", google_service_account.thermostat-bigquery.email])]
-}
+# resource "google_cloudfunctions_function_iam_binding" "accumulation-import" {
+#   project  = local.project_id
+#   region = "us-east4"
+#   cloud_function = data.google_cloudfunctions_function.data-accumulation-import.name
+#   role     = "roles/cloudfunctions.invoker"
+#   members   = [join(":", ["serviceAccount", google_service_account.thermostat-bigquery.email])]
+# }
 
 
-resource "google_cloud_run_service_iam_member" "thermostat-bigquery-id" {
-  project  = local.project_id
-  service  = "thermostat-agent"
-  role     = "roles/run.invoker"
-  location = "us-east4"
-  member   = join(":", ["serviceAccount", google_service_account.thermostat-bigquery.email])
-}
+# resource "google_cloud_run_service_iam_member" "thermostat-bigquery-id" {
+#   project  = local.project_id
+#   service  = "thermostat-agent"
+#   role     = "roles/run.invoker"
+#   location = "us-east4"
+#   member   = join(":", ["serviceAccount", google_service_account.thermostat-bigquery.email])
+# }
 
 resource "google_bigquery_dataset" "dataset-thermostat" {
   dataset_id                  = "thermostat"
@@ -393,6 +441,19 @@ resource "google_project_iam_member" "jobUser" {
   role    = "roles/bigquery.jobUser"
   member  = join(":", ["serviceAccount", google_service_account.thermostat-bigquery.email])
 }
+
+resource "google_project_iam_member" "dataflowadm" {
+  project = local.project_id
+  role    = "roles/dataflow.admin"
+  member  = join(":", ["serviceAccount", google_service_account.thermostat-bigquery.email])
+}
+
+resource "google_project_iam_member" "dataflowworker" {
+  project = local.project_id
+  role    = "roles/dataflow.worker"
+  member  = join(":", ["serviceAccount", google_service_account.thermostat-bigquery.email])
+}
+
 
 # resource "google_bigquery_table" "thermostat_metric" {
 #   dataset_id = google_bigquery_dataset.dataset-thermostat.dataset_id

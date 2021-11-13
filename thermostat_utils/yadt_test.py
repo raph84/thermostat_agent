@@ -4,7 +4,7 @@ pip install -U pytest
 > pytest
 '''
 
-from yadt import utcnow, ceil_dt, tz, utc_to_toronto, scan_and_apply_tz
+from .yadt import utcnow, ceil_dt, tz, utc_to_toronto, scan_and_apply_tz
 from datetime import datetime
 from pytz import timezone
 import pytz
